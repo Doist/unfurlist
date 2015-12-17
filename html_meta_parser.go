@@ -4,13 +4,13 @@
 package unfurlist
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
-	"regexp"
 	"strings"
-)
 
-var ReTitle = regexp.MustCompile("<title[^>]*>(.+)</title>")
+	"golang.org/x/net/html"
+)
 
 func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) serviceResult {
 	serviceResult := serviceResult{Result: result, HasMatch: false}
@@ -36,10 +36,38 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte
 }
 
 func findTitle(htmlBody []byte) (title string, err error) {
-	match := ReTitle.FindSubmatch(htmlBody)
-	if len(match) == 2 {
-		return string(match[1]), nil
-	} else {
-		return title, errors.New("no title tag found")
+	node, err := html.Parse(bytes.NewReader(htmlBody))
+	if err != nil {
+		return "", err
 	}
+	if t, ok := getFirstElement(node, "title"); ok {
+		return t, nil
+	}
+	return title, errors.New("no title tag found")
+}
+
+// getFirstElement returns flattened content of first found element of given
+// type
+func getFirstElement(n *html.Node, element string) (t string, found bool) {
+	if n.Type == html.ElementNode && n.Data == element {
+		return flatten(n), true
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		t, found = getFirstElement(c, element)
+		if found {
+			return
+		}
+	}
+	return
+}
+
+// flatten returns flattened text content of html node
+func flatten(n *html.Node) (res string) {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		res += flatten(c)
+	}
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	return
 }
