@@ -9,23 +9,17 @@ import (
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
-func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) serviceResult {
-	serviceResult := serviceResult{Result: result, HasMatch: false}
-
+func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
 	og := opengraph.NewOpenGraph()
 	err := og.ProcessHTML(bytes.NewReader(htmlBody))
-
 	if err != nil || og.Title == "" {
-		return serviceResult
+		return false
 	}
-
 	result.Title = og.Title
 	result.Description = og.Description
 	result.Type = og.Type
 	if len(og.Images) > 0 {
 		result.Image = og.Images[0].URL
 	}
-	serviceResult.HasMatch = true
-
-	return serviceResult
+	return true
 }

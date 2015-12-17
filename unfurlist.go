@@ -69,11 +69,6 @@ type unfurlResult struct {
 	idx int
 }
 
-type serviceResult struct {
-	HasMatch bool
-	Result   *unfurlResult
-}
-
 type unfurlResults []unfurlResult
 
 func (rs unfurlResults) Len() int           { return len(rs) }
@@ -180,9 +175,9 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	result.URL = url
 
 	// Try oEmbed
-	serviceResult := OembedParseUrl(h, &result)
+	matched := OembedParseUrl(h, &result)
 
-	if !serviceResult.HasMatch {
+	if !matched {
 		// Parse the HTML
 		htmlBody, err := h.fetchHTML(result.URL)
 		if err != nil {
@@ -193,10 +188,9 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 			return
 		}
 		// Try OpenGraph
-		serviceResult = OpenGraphParseHTML(h, &result, htmlBody)
-		// Fallback to parsing basic HTML
-		if !serviceResult.HasMatch {
-			serviceResult = BasicParseParseHTML(h, &result, htmlBody)
+		if !OpenGraphParseHTML(h, &result, htmlBody) {
+			// Fallback to parsing basic HTML
+			BasicParseParseHTML(h, &result, htmlBody)
 		}
 	}
 

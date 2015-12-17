@@ -12,17 +12,11 @@ import (
 	"golang.org/x/net/html"
 )
 
-func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) serviceResult {
-	serviceResult := serviceResult{Result: result, HasMatch: false}
-
-	title, err := findTitle(htmlBody)
-	if err == nil {
+func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
+	if title, err := findTitle(htmlBody); err == nil {
 		result.Title = title
-		serviceResult.HasMatch = true
 	}
-
 	result.Type = http.DetectContentType(htmlBody)
-
 	switch {
 	case strings.HasPrefix(result.Type, "image/"):
 		result.Type = "image"
@@ -32,8 +26,7 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte
 	case strings.HasPrefix(result.Type, "video/"):
 		result.Type = "video"
 	}
-
-	return serviceResult
+	return true
 }
 
 func findTitle(htmlBody []byte) (title string, err error) {
