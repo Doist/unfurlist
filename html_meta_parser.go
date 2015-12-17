@@ -12,7 +12,7 @@ import (
 
 var ReTitle = regexp.MustCompile("<title[^>]*>(.+)</title>")
 
-func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string) serviceResult {
+func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) serviceResult {
 	serviceResult := serviceResult{Result: result, HasMatch: false}
 
 	title, err := findTitle(htmlBody)
@@ -21,7 +21,7 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string
 		serviceResult.HasMatch = true
 	}
 
-	result.Type = http.DetectContentType([]byte(htmlBody))
+	result.Type = http.DetectContentType(htmlBody)
 
 	if strings.Index(result.Type, "image/") != -1 {
 		result.Type = "image"
@@ -35,10 +35,10 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string
 	return serviceResult
 }
 
-func findTitle(htmlBody string) (title string, err error) {
-	match := ReTitle.FindStringSubmatch(htmlBody)
+func findTitle(htmlBody []byte) (title string, err error) {
+	match := ReTitle.FindSubmatch(htmlBody)
 	if len(match) == 2 {
-		return match[1], nil
+		return string(match[1]), nil
 	} else {
 		return title, errors.New("no title tag found")
 	}

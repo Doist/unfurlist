@@ -219,20 +219,15 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 // fetchHTML fetches the primary chunk of the document
 // it does not care if the URL isn't HTML format
 // the chunk size is determined by h.Config.MaxBodyChunckSize
-func (h *unfurlHandler) fetchHTML(URL string) (string, error) {
+func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
 	response, err := http.Get(URL)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	defer response.Body.Close()
 
 	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunckSize)
 
-	body, err := ioutil.ReadAll(firstChunk)
-	if err != nil {
-		return "", err
-	}
-
-	return string(body), nil
+	return ioutil.ReadAll(firstChunk)
 }

@@ -4,16 +4,16 @@
 package unfurlist
 
 import (
-	"strings"
+	"bytes"
 
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
-func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string) serviceResult {
+func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) serviceResult {
 	serviceResult := serviceResult{Result: result, HasMatch: false}
 
 	og := opengraph.NewOpenGraph()
-	err := og.ProcessHTML(strings.NewReader(htmlBody))
+	err := og.ProcessHTML(bytes.NewReader(htmlBody))
 
 	if err != nil || og.Title == "" {
 		return serviceResult
