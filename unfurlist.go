@@ -2,12 +2,11 @@
 //
 // The current version supports Open Graph and oEmbed formats, Twitter card format is also planned.
 // If the URL does not support common formats it falls back to looking at HTML tags such as
-// <title> and <meta>.
+// <title>.
 //
 // The endpoint accepts GET requests with `content` as the main argument.
 // It then returns a JSON encoded list of URLs that were parsed.
 //
-// If an URL can't be unfurled it won't be returned in the results.
 // If an URL lacks an attribute (e.g. `image`) then this attribute will be omitted from the result.
 //
 // Example:
@@ -36,13 +35,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/dyatlov/go-oembed/oembed"
-	"github.com/rainycape/memcache"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"sort"
+
+	"github.com/dyatlov/go-oembed/oembed"
+	"github.com/rainycape/memcache"
 )
 
 // Configuration object for the HTTP handler
