@@ -182,24 +182,22 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	// Try oEmbed
 	serviceResult := OembedParseUrl(h, &result)
 
-	// Parse the HTML
-	htmlBody, err := h.fetchHTML(result.URL)
-	if err != nil {
-		select {
-		case resp <- result:
-		case <-abort:
+	if !serviceResult.HasMatch {
+		// Parse the HTML
+		htmlBody, err := h.fetchHTML(result.URL)
+		if err != nil {
+			select {
+			case resp <- result:
+			case <-abort:
+			}
+			return
 		}
-		return
-	}
-
-	// Try OpenGraph
-	if !serviceResult.HasMatch {
+		// Try OpenGraph
 		serviceResult = OpenGraphParseHTML(h, &result, htmlBody)
-	}
-
-	// Fallback to parsing basic HTML
-	if !serviceResult.HasMatch {
-		serviceResult = BasicParseParseHTML(h, &result, htmlBody)
+		// Fallback to parsing basic HTML
+		if !serviceResult.HasMatch {
+			serviceResult = BasicParseParseHTML(h, &result, htmlBody)
+		}
 	}
 
 	if mc != nil {
