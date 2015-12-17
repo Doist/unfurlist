@@ -23,12 +23,13 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte
 
 	result.Type = http.DetectContentType(htmlBody)
 
-	if strings.Index(result.Type, "image/") != -1 {
+	switch {
+	case strings.HasPrefix(result.Type, "image/"):
 		result.Type = "image"
 		result.Image = result.URL
-	} else if strings.Index(result.Type, "text/") != -1 {
+	case strings.HasPrefix(result.Type, "text/"):
 		result.Type = "website"
-	} else if strings.Index(result.Type, "video/") != -1 {
+	case strings.HasPrefix(result.Type, "video/"):
 		result.Type = "video"
 	}
 
