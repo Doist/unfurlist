@@ -34,7 +34,6 @@ package unfurlist
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -145,7 +144,13 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 	}
 
-	fmt.Fprint(w, h.toJSON(results, callback))
+	if callback != "" {
+		io.WriteString(w, callback+"(")
+		json.NewEncoder(w).Encode(results)
+		w.Write([]byte(")"))
+		return
+	}
+	json.NewEncoder(w).Encode(results)
 }
 
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
@@ -209,16 +214,6 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	case resp <- result:
 	case <-abort:
 	}
-}
-
-// toJSON converts the set of messages to a JSON-encoded string
-func (h *unfurlHandler) toJSON(messages unfurlResults, callback string) string {
-	jsonMessages, _ := json.Marshal(messages)
-	messagesStr := string(jsonMessages)
-	if callback != "" {
-		messagesStr = fmt.Sprintf(`%s(%s)`, callback, messagesStr)
-	}
-	return messagesStr
 }
 
 // fetchHTML fetches the primary chunk of the document
