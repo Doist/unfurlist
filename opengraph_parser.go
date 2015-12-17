@@ -4,19 +4,19 @@
 package unfurlist
 
 import (
-	"github.com/dyatlov/go-opengraph/opengraph"
 	"strings"
+
+	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
-func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string, resp chan<- serviceResult) {
+func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string) serviceResult {
 	serviceResult := serviceResult{Result: result, HasMatch: false}
 
 	og := opengraph.NewOpenGraph()
 	err := og.ProcessHTML(strings.NewReader(htmlBody))
 
 	if err != nil || og.Title == "" {
-		resp <- serviceResult
-		return
+		return serviceResult
 	}
 
 	result.Title = og.Title
@@ -27,5 +27,5 @@ func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string,
 	}
 	serviceResult.HasMatch = true
 
-	resp <- serviceResult
+	return serviceResult
 }

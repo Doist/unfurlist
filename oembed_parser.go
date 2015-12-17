@@ -3,7 +3,7 @@
 
 package unfurlist
 
-func OembedParseUrl(h *unfurlHandler, result *unfurlResult, resp chan<- serviceResult) {
+func OembedParseUrl(h *unfurlHandler, result *unfurlResult) serviceResult {
 	serviceResult := serviceResult{Result: result, HasMatch: false}
 	item := h.Config.OembedParser.FindItem(result.URL)
 
@@ -21,5 +21,5 @@ func OembedParseUrl(h *unfurlHandler, result *unfurlResult, resp chan<- serviceR
 		}
 	}
 
-	resp <- serviceResult
+	return serviceResult
 }

@@ -12,7 +12,7 @@ import (
 
 var ReTitle = regexp.MustCompile("<title[^>]*>(.+)</title>")
 
-func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string, resp chan<- serviceResult) {
+func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string) serviceResult {
 	serviceResult := serviceResult{Result: result, HasMatch: false}
 
 	title, err := findTitle(htmlBody)
@@ -32,7 +32,7 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody string
 		result.Type = "video"
 	}
 
-	resp <- serviceResult
+	return serviceResult
 }
 
 func findTitle(htmlBody string) (title string, err error) {
