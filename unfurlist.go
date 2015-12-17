@@ -121,9 +121,11 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	jobResults := make(chan unfurlResult, 1)
 	results := make(unfurlResults, 0, len(urls))
+	abort := make(chan struct{}) // used to cancel background goroutines
+	defer close(abort)
 
 	for i, r := range urls {
-		go h.processURL(i, r, jobResults)
+		go h.processURL(i, r, jobResults, abort)
 	}
 	for i := 0; i < len(urls); i++ {
 		select {
@@ -148,7 +150,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
 // If no match is found the result will be an object that just contains the URL
-func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult) {
+func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, abort <-chan struct{}) {
 	mc := h.Config.Cache
 
 	if mc != nil {
@@ -158,7 +160,10 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult) 
 			err = json.Unmarshal(it.Value, &cached)
 			if err == nil {
 				h.Config.Log.Print("Hitting cache")
-				resp <- cached
+				select {
+				case resp <- cached:
+				case <-abort:
+				}
 				return
 			}
 		}
@@ -175,7 +180,10 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult) 
 	// Parse the HTML
 	htmlBody, err := h.fetchHTML(result.URL)
 	if err != nil {
-		resp <- result
+		select {
+		case resp <- result:
+		case <-abort:
+		}
 		return
 	}
 
@@ -197,7 +205,10 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult) 
 		}
 	}
 
-	resp <- result
+	select {
+	case resp <- result:
+	case <-abort:
+	}
 }
 
 // toJSON converts the set of messages to a JSON-encoded string
