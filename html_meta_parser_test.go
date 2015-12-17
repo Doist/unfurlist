@@ -5,10 +5,23 @@ import (
 )
 
 func TestTitleParser(t *testing.T) {
-	title, _ := findTitle([]byte("<html>\n<title>Hello</title></html>"))
-	want := "Hello"
-
-	if title != want {
-		t.Errorf("Title not found: %d != %d", title, want)
+	for i, c := range titleTestCases {
+		title, err := findTitle([]byte(c.body))
+		if err != nil {
+			t.Errorf("case %d failed: %v", i, err)
+			continue
+		}
+		if title != c.want {
+			t.Errorf("case %d mismatch: %q != %q", i, title, c.want)
+		}
 	}
+}
+
+var titleTestCases = []struct {
+	body string
+	want string
+}{
+	{"<html><title>Hello</title></html>", "Hello"},
+	{"<html><TITLE>Hello</TITLE></html>", "Hello"},
+	{"<html><title>Hello\n</title></html>", "Hello\n"},
 }
