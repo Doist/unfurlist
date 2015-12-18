@@ -47,6 +47,7 @@ import (
 
 // Configuration object for the HTTP handler
 type UnfurlConfig struct {
+	HTTPClient        *http.Client
 	Log               *log.Logger
 	OembedParser      *oembed.Oembed
 	Cache             *memcache.Client
@@ -213,7 +214,11 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 // it does not care if the URL isn't HTML format
 // the chunk size is determined by h.Config.MaxBodyChunckSize
 func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
-	response, err := http.Get(URL)
+	client := h.Config.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	response, err := client.Get(URL)
 	if err != nil {
 		return nil, err
 	}

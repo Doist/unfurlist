@@ -8,7 +8,7 @@ func OembedParseUrl(h *unfurlHandler, result *unfurlResult) bool {
 	if item == nil {
 		return false
 	}
-	info, err := item.FetchOembed(result.URL, nil)
+	info, err := item.FetchOembed(result.URL, h.Config.HTTPClient)
 	if err != nil || info.Status >= 300 {
 		return false
 	}
