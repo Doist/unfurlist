@@ -2,8 +2,11 @@ package unfurlist
 
 import (
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 )
 
@@ -60,7 +63,17 @@ func TestHtml(t *testing.T) {
 }
 
 func doRequest(url string, t *testing.T) []unfurlResult {
-	config := UnfurlConfig{}
+	pp := newPipePool()
+	defer pp.Close()
+	go http.Serve(pp, http.HandlerFunc(replayHandler))
+	config := UnfurlConfig{
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				Dial:    pp.Dial,
+				DialTLS: pp.Dial,
+			},
+		},
+	}
 	handler := New(&config)
 
 	w := httptest.NewRecorder()
@@ -80,3 +93,60 @@ func doRequest(url string, t *testing.T) []unfurlResult {
 
 	return result
 }
+
+// replayHandler is a http.Handler responding with pre-recorded data
+func replayHandler(w http.ResponseWriter, r *http.Request) {
+	d, ok := remoteData[r.Host+r.URL.RequestURI()]
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.Write([]byte(d))
+}
+
+// pipePool implements net.Listener interface and provides a Dial() func to dial
+// to this listener
+type pipePool struct {
+	m           sync.RWMutex
+	closed      bool
+	serverConns chan net.Conn
+}
+
+func newPipePool() *pipePool { return &pipePool{serverConns: make(chan net.Conn)} }
+
+func (p *pipePool) Accept() (net.Conn, error) {
+	c, ok := <-p.serverConns
+	if !ok {
+		return nil, errors.New("listener is closed")
+	}
+	return c, nil
+}
+
+func (p *pipePool) Close() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if !p.closed {
+		close(p.serverConns)
+		p.closed = true
+	}
+	return nil
+}
+func (p *pipePool) Addr() net.Addr { return phonyAddr{} }
+
+func (p *pipePool) Dial(network, addr string) (net.Conn, error) {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	if p.closed {
+		return nil, errors.New("listener is closed")
+	}
+	c1, c2 := net.Pipe()
+	p.serverConns <- c1
+	return c2, nil
+}
+
+type phonyAddr struct{}
+
+func (a phonyAddr) Network() string { return "pipe" }
+func (a phonyAddr) String() string  { return "pipe" }
+
+//go:generate go run remote-data-update.go
