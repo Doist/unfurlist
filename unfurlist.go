@@ -34,6 +34,7 @@ package unfurlist
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"log"
@@ -216,8 +217,11 @@ func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	defer response.Body.Close()
+
+	if response.StatusCode >= http.StatusBadRequest {
+		return nil, errors.New("bad status: " + response.Status)
+	}
 
 	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunckSize)
 
