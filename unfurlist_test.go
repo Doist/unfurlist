@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -21,6 +22,15 @@ func TestOpenGraph(t *testing.T) {
 	want = "https://tctechcrunch2011.files.wordpress.com/2015/11/basic-income-createathon.jpg?w=764\u0026h=400\u0026crop=1"
 	if result[0].Image != want {
 		t.Errorf("Image not valid, %q != %q", want, result[0].Title)
+	}
+}
+
+func TestOpenGraphTwitter(t *testing.T) {
+	result := doRequest("/?content=Test+https://twitter.com/amix3k/status/679355208091181056", t)
+
+	want := "Help a family out of hunger and poverty"
+	if !strings.Contains(result[0].Title, want) {
+		t.Errorf("Title not valid, %q != %q", want, result[0].Title)
 	}
 }
 
