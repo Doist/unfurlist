@@ -41,8 +41,8 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/dyatlov/go-oembed/oembed"
-	"github.com/rainycape/memcache"
 )
 
 // Configuration object for the HTTP handler
