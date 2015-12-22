@@ -2,12 +2,13 @@
 package main
 
 import (
-	"bitbucket.org/doist/unfurlist"
 	"flag"
-	"github.com/rainycape/memcache"
 	"log"
 	"net/http"
 	"os"
+
+	"bitbucket.org/doist/unfurlist"
+	"github.com/bradfitz/gomemcache/memcache"
 )
 
 func main() {
@@ -27,15 +28,10 @@ func main() {
 
 	// Memcache
 	var mc *memcache.Client
-	var err error
 
 	if cache != "" {
 		log.Print("Setting up cache")
-		mc, err = memcache.New(cache)
-		if err != nil {
-			log.Print(err)
-			mc = nil
-		}
+		mc = memcache.New(cache)
 	}
 
 	config := unfurlist.UnfurlConfig{
