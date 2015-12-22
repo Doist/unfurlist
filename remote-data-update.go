@@ -18,6 +18,7 @@ var urls = []string{
 	"http://techcrunch.com/2015/11/09/basic-income-createathon/",
 	"https://www.youtube.com/watch?v=Ey8FzGECjFA",
 	"https://news.ycombinator.com/",
+	"https://twitter.com/amix3k/status/679355208091181056",
 }
 
 func main() {
