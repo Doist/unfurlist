@@ -33,8 +33,10 @@ package unfurlist
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -156,7 +158,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	mc := h.Config.Cache
 
 	if mc != nil {
-		it, err := mc.Get(url)
+		it, err := mc.Get(mcKey(url))
 		if err == nil {
 			var cached unfurlResult
 			err = json.Unmarshal(it.Value, &cached)
@@ -200,7 +202,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		cdata, err := json.Marshal(result)
 		if err == nil {
 			h.Config.Log.Print("Updating URL with cache")
-			mc.Set(&memcache.Item{Key: url, Value: cdata})
+			mc.Set(&memcache.Item{Key: mcKey(url), Value: cdata})
 		}
 	}
 
@@ -231,4 +233,12 @@ func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
 	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunckSize)
 
 	return ioutil.ReadAll(firstChunk)
+}
+
+// mcKey returns string of hex representation of sha1 sum of string provided.
+// Used to get safe keys to use with memcached
+func mcKey(s string) string {
+	h := sha1.New()
+	io.WriteString(h, s)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
