@@ -163,7 +163,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 			var cached unfurlResult
 			err = json.Unmarshal(it.Value, &cached)
 			if err == nil {
-				h.Config.Log.Print("Hitting cache")
+				h.Config.Log.Printf("Cache hit for %q", url)
 				select {
 				case resp <- cached:
 				case <-abort:
@@ -201,7 +201,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	if mc != nil {
 		cdata, err := json.Marshal(result)
 		if err == nil {
-			h.Config.Log.Print("Updating URL with cache")
+			h.Config.Log.Printf("Cache update for %q", url)
 			mc.Set(&memcache.Item{Key: mcKey(url), Value: cdata})
 		}
 	}
