@@ -7,6 +7,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"time"
 
 	"bitbucket.org/doist/unfurlist"
 	"github.com/bradfitz/gomemcache/memcache"
@@ -18,7 +19,9 @@ func main() {
 		pprofListen       = "127.0.0.1:6060"
 		cache             = ""
 		certfile, keyfile string
+		timeout           = 30 * time.Second
 	)
+	flag.DurationVar(&timeout, "timeout", timeout, "timeout for remote i/o")
 	flag.StringVar(&listen, "listen", listen, "`address` to listen, set both -sslcert and -sslkey for HTTPS")
 	flag.StringVar(&pprofListen, "pprof", pprofListen, "`address` to serve pprof data at (usually localhost)")
 	flag.StringVar(&certfile, "sslcert", "", "path to certificate `file` (PEM)")
@@ -26,7 +29,13 @@ func main() {
 	flag.StringVar(&cache, "cache", cache, "`address` to memcached client (both host and ip)")
 	flag.Parse()
 
+	if timeout < 0 {
+		timeout = 0
+	}
 	config := unfurlist.UnfurlConfig{
+		HTTPClient: &http.Client{
+			Timeout: timeout,
+		},
 		Log: log.New(os.Stderr, "", log.LstdFlags),
 	}
 	if cache != "" {
