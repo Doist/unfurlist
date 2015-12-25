@@ -26,20 +26,12 @@ func main() {
 	flag.StringVar(&cache, "cache", cache, "`address` to memcached client (both host and ip)")
 	flag.Parse()
 
-	// Log
-	log := log.New(os.Stderr, "", log.LstdFlags)
-
-	// Memcache
-	var mc *memcache.Client
-
-	if cache != "" {
-		log.Print("Setting up cache")
-		mc = memcache.New(cache)
-	}
-
 	config := unfurlist.UnfurlConfig{
-		Log:   log,
-		Cache: mc,
+		Log: log.New(os.Stderr, "", log.LstdFlags),
+	}
+	if cache != "" {
+		log.Print("Enable cache at ", cache)
+		config.Cache = memcache.New(cache)
 	}
 
 	handler := unfurlist.New(&config)
