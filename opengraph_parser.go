@@ -5,14 +5,30 @@ package unfurlist
 
 import (
 	"bytes"
+	"io"
 	"strings"
+	"unicode/utf8"
+
+	"golang.org/x/net/html"
+	"golang.org/x/text/encoding/htmlindex"
 
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
 func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
+	var bodyReader io.Reader = bytes.NewReader(htmlBody)
+	if !utf8.Valid(htmlBody) {
+		node, err := html.Parse(bytes.NewReader(htmlBody))
+		if err != nil {
+			goto ogProcess
+		}
+		if enc, err := htmlindex.Get(htmlCharset(node)); err == nil {
+			bodyReader = enc.NewDecoder().Reader(bodyReader)
+		}
+	}
+ogProcess:
 	og := opengraph.NewOpenGraph()
-	err := og.ProcessHTML(bytes.NewReader(htmlBody))
+	err := og.ProcessHTML(bodyReader)
 	if err != nil || og.Title == "" {
 		return false
 	}
