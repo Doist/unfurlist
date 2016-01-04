@@ -72,6 +72,14 @@ func TestHtml(t *testing.T) {
 	}
 }
 
+func TestUnfurlist__multibyteHTML(t *testing.T) {
+	res := doRequest("/?content=http://news.chosun.com/site/data/html_dir/2009/09/24/2009092401755.html", t)
+	want := `심장정지 환자 못살리는 119 구급차 - 1등 인터넷뉴스 조선닷컴 - 의료ㆍ보건`
+	if res[0].Title != want {
+		t.Errorf("Title not valid, got %q, want %q", res[0].Title, want)
+	}
+}
+
 func doRequest(url string, t *testing.T) []unfurlResult {
 	pp := newPipePool()
 	defer pp.Close()

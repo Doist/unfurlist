@@ -19,6 +19,7 @@ var urls = []string{
 	"https://www.youtube.com/watch?v=Ey8FzGECjFA",
 	"https://news.ycombinator.com/",
 	"https://twitter.com/amix3k/status/679355208091181056",
+	"http://news.chosun.com/site/data/html_dir/2009/09/24/2009092401755.html",
 }
 
 func main() {
