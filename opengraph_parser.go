@@ -20,13 +20,12 @@ func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte)
 	if !utf8.Valid(htmlBody) {
 		node, err := html.Parse(bytes.NewReader(htmlBody))
 		if err != nil {
-			goto ogProcess
+			return false
 		}
 		if enc, err := htmlindex.Get(htmlCharset(node)); err == nil {
 			bodyReader = enc.NewDecoder().Reader(bodyReader)
 		}
 	}
-ogProcess:
 	og := opengraph.NewOpenGraph()
 	err := og.ProcessHTML(bodyReader)
 	if err != nil || og.Title == "" {
