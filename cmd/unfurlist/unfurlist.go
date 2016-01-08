@@ -47,6 +47,14 @@ func main() {
 	if pprofListen != "" {
 		go func(addr string) { log.Println(http.ListenAndServe(addr, nil)) }(pprofListen)
 	}
+	go func() {
+		// on a highly used system unfurlist can accumulate a lot of
+		// idle connections occupying memory; force periodic close of
+		// them
+		for range time.NewTicker(2 * time.Minute).C {
+			http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+		}
+	}()
 
 	if certfile != "" && keyfile != "" {
 		log.Fatal(http.ListenAndServeTLS(listen, certfile, keyfile, handler))
