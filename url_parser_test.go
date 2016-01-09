@@ -1,8 +1,30 @@
 package unfurlist
 
 import (
+	"fmt"
 	"testing"
 )
+
+func ExampleParseURLs() {
+	text := `This text contains various urls mixed with different reserved per rfc3986 characters:
+	http://google.com, https://doist.com/#about (also see https://todoist.com), <http://example.com/foo>,
+	[markdown](http://daringfireball.net/projects/markdown/),
+	http://marvel-movies.wikia.com/wiki/The_Avengers_(film), https://pt.wikipedia.org/wiki/Mamão.
+	http://example.com/?param=foo;bar
+	`
+	for _, u := range ParseURLs(text) {
+		fmt.Println(u)
+	}
+	// Output:
+	// http://google.com
+	// https://doist.com/#about
+	// https://todoist.com
+	// http://example.com/foo
+	// http://daringfireball.net/projects/markdown/
+	// http://marvel-movies.wikia.com/wiki/The_Avengers_(film)
+	// https://pt.wikipedia.org/wiki/Mamão
+	// http://example.com/?param=foo;bar
+}
 
 func TestBasicURLs(t *testing.T) {
 	got := ParseURLs("Testing this out http://doist.com/#about https://todoist.com/chrome")
