@@ -6,8 +6,9 @@ import (
 )
 
 // reUrls matches sequence of characters described by RFC 3986 having http:// or
-// https:// prefix
-var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\)*+,;=\pL\pN._~-]+`)
+// https:// prefix. It actually allows subset of characters from RFC 3986,
+// allowing some most commonly used characters like {}, etc.
+var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+`)
 
 // ParseURLs tries to extract url-like (http/https scheme only) substrings from
 // given text. Results may not be proper urls, since only sequence of matched
@@ -16,7 +17,7 @@ var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\)*+,;=\pL\pN._~-]+`)
 // symbols []()<>,;. are removed, but // trailing >]) are left if any opening
 // <[( is found inside url.
 func ParseURLs(content string) []string {
-	const punct = `[]()<>,;.`
+	const punct = `[]()<>{},;.`
 	res := reUrls.FindAllString(content, -1)
 	for i, s := range res {
 		// remove all combinations of trailing >)],. characters only if
@@ -41,6 +42,10 @@ func ParseURLs(content string) []string {
 				}
 			case '>':
 				if strings.Index(s, `<`) > 0 {
+					break cleanLoop
+				}
+			case '}':
+				if strings.Index(s, `{`) > 0 {
 					break cleanLoop
 				}
 			}

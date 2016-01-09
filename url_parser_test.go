@@ -10,6 +10,7 @@ func ExampleParseURLs() {
 	http://google.com, https://doist.com/#about (also see https://todoist.com), <http://example.com/foo>,
 	[markdown](http://daringfireball.net/projects/markdown/),
 	http://marvel-movies.wikia.com/wiki/The_Avengers_(film), https://pt.wikipedia.org/wiki/Mamão.
+	https://docs.live.net/foo/?section-id={D7CEDACE-AEFB-4B61-9C63-BDE05EEBD80A},
 	http://example.com/?param=foo;bar
 	`
 	for _, u := range ParseURLs(text) {
@@ -23,6 +24,7 @@ func ExampleParseURLs() {
 	// http://daringfireball.net/projects/markdown/
 	// http://marvel-movies.wikia.com/wiki/The_Avengers_(film)
 	// https://pt.wikipedia.org/wiki/Mamão
+	// https://docs.live.net/foo/?section-id={D7CEDACE-AEFB-4B61-9C63-BDE05EEBD80A}
 	// http://example.com/?param=foo;bar
 }
 
