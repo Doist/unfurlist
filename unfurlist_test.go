@@ -21,7 +21,7 @@ func TestOpenGraph(t *testing.T) {
 
 	want = "https://tctechcrunch2011.files.wordpress.com/2015/11/basic-income-createathon.jpg?w=764\u0026h=400\u0026crop=1"
 	if result[0].Image != want {
-		t.Errorf("Image not valid, %q != %q", want, result[0].Title)
+		t.Errorf("Image not valid, %q != %q", want, result[0].Image)
 	}
 }
 
@@ -44,12 +44,12 @@ func TestOembed(t *testing.T) {
 
 	want = "https://i.ytimg.com/vi/Ey8FzGECjFA/hqdefault.jpg"
 	if result[0].Image != want {
-		t.Errorf("Image not valid, %q != %q", want, result[0].Title)
+		t.Errorf("Image not valid, %q != %q", want, result[0].Image)
 	}
 
 	want = "video"
 	if result[0].Type != want {
-		t.Errorf("Type not valid, %q != %q", want, result[0].Title)
+		t.Errorf("Type not valid, %q != %q", want, result[0].Type)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestHtml(t *testing.T) {
 
 	want = ""
 	if result[0].Image != want {
-		t.Errorf("Image not valid, %q != %q", want, result[0].Title)
+		t.Errorf("Image not valid, %q != %q", want, result[0].Image)
 	}
 
 	want = "website"
