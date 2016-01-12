@@ -8,10 +8,9 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"unicode/utf8"
 
 	"golang.org/x/net/html"
-	"golang.org/x/text/encoding/htmlindex"
+	"golang.org/x/net/html/charset"
 )
 
 func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
@@ -32,59 +31,18 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte
 }
 
 func findTitle(htmlBody []byte) (title string, err error) {
-	if utf8.Valid(htmlBody) {
-		node, err := html.Parse(bytes.NewReader(htmlBody))
-		if err != nil {
-			return "", err
-		}
-		if t, ok := getFirstElement(node, "title"); ok {
-			return t, nil
-		}
-		return title, errNoTitleTag
-	}
-	// body is not valid utf8, but was (expectedly) detected as "text/*"
-	// mime-type by caller of this function, so it most probably one of the
-	// multibyte encoding html. Try to parse this as html and extract `meta
-	// charset` attribute to convert data to utf8.
-	node, err := html.Parse(bytes.NewReader(htmlBody))
+	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), "text/html")
 	if err != nil {
 		return "", err
 	}
-	charset := htmlCharset(node)
-	if charset == "" {
-		return "", errors.New("cannot detect multibyte document charset")
-	}
-	enc, err := htmlindex.Get(charset)
-	if err != nil {
-		return "", err
-	}
-	// re-parse document as utf8
-	node, err = html.Parse(enc.NewDecoder().Reader(bytes.NewReader(htmlBody)))
+	node, err := html.Parse(bodyReader)
 	if err != nil {
 		return "", err
 	}
 	if t, ok := getFirstElement(node, "title"); ok {
 		return t, nil
 	}
-	return title, errNoTitleTag
-}
-
-// htmlCharset tries to find first 'meta charset=xxx' attribute and extract
-// charset as a string
-func htmlCharset(n *html.Node) string {
-	if n.Type == html.ElementNode && n.Data == "meta" {
-		for _, a := range n.Attr {
-			if a.Key == "charset" {
-				return a.Val
-			}
-		}
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if s := htmlCharset(c); s != "" {
-			return s
-		}
-	}
-	return ""
+	return "", errNoTitleTag
 }
 
 // getFirstElement returns flattened content of first found element of given

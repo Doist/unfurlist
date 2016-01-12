@@ -5,29 +5,30 @@ package unfurlist
 
 import (
 	"bytes"
-	"io"
+	"net/http"
 	"strings"
-	"unicode/utf8"
 
-	"golang.org/x/net/html"
-	"golang.org/x/text/encoding/htmlindex"
+	"golang.org/x/net/html/charset"
 
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
 func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
-	var bodyReader io.Reader = bytes.NewReader(htmlBody)
-	if !utf8.Valid(htmlBody) {
-		node, err := html.Parse(bytes.NewReader(htmlBody))
-		if err != nil {
-			return false
-		}
-		if enc, err := htmlindex.Get(htmlCharset(node)); err == nil {
-			bodyReader = enc.NewDecoder().Reader(bodyReader)
-		}
+	if !strings.HasPrefix(http.DetectContentType(htmlBody), "text/html") {
+		return false
+	}
+	// use explicit "text/html" type here but not the one returned by
+	// http.DetectContentType because this function scans only first 512
+	// bytes and can report content as "text/html; charset=utf-8" even for
+	// bodies having characters outside utf8 range later; use
+	// charset.NewReader that relies on charset.DetermineEncoding which
+	// implements more elaborate encoding detection specific to html content
+	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), "text/html")
+	if err != nil {
+		return false
 	}
 	og := opengraph.NewOpenGraph()
-	err := og.ProcessHTML(bodyReader)
+	err = og.ProcessHTML(bodyReader)
 	if err != nil || og.Title == "" {
 		return false
 	}
