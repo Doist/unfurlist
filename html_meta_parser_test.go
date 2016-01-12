@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTitleParser_multibyte(t *testing.T) {
+func TestTitleParser__multibyte1(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/korean")
 	if err != nil {
 		t.Fatal(err)
@@ -15,6 +15,21 @@ func TestTitleParser_multibyte(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `심장정지 환자 못살리는 119 구급차 - 1등 인터넷뉴스 조선닷컴 - 의료ㆍ보건`
+	if title != want {
+		t.Fatalf("unexpected title: got %q, want %q", title, want)
+	}
+}
+
+func TestTitleParser__multibyte2(t *testing.T) {
+	data, err := ioutil.ReadFile("testdata/japanese")
+	if err != nil {
+		t.Fatal(err)
+	}
+	title, err := findTitle(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `【楽天市場】テレビ台【ALTER／アルター】コーナータイプ【ＴＶ台】薄型ＴＶ３７型対応 ＡＶ収納【ＡＶボード】【コーナーボード】【幅１００】◆代引不可★一部組立【駅伝_中_四】：インテリア雑貨通販 H-collection`
 	if title != want {
 		t.Fatalf("unexpected title: got %q, want %q", title, want)
 	}
