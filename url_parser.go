@@ -6,7 +6,7 @@ import (
 )
 
 // reUrls matches sequence of characters described by RFC 3986 having http:// or
-// https:// prefix. It actually allows subset of characters from RFC 3986,
+// https:// prefix. It actually allows superset of characters from RFC 3986,
 // allowing some most commonly used characters like {}, etc.
 var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+`)
 
