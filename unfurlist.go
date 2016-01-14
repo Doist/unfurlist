@@ -160,12 +160,17 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
 // If no match is found the result will be an object that just contains the URL
 func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, abort <-chan struct{}) {
+	waitLogged := false
 	for {
 		// spinlock-like loop to ensure we don't have two in-flight
 		// outgoing requests for the same url
 		h.mu.Lock()
 		if ch, ok := h.inFlight[url]; ok {
 			h.mu.Unlock()
+			if !waitLogged {
+				h.Config.Log.Printf("Wait for in-flight request to complete %q", url)
+				waitLogged = true
+			}
 			<-ch // block until another goroutine processes the same url
 		} else {
 			ch = make(chan struct{})
