@@ -10,7 +10,7 @@ import (
 // allowing some most commonly used characters like {}, etc.
 var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+`)
 
-// ParseURLs tries to extract url-like (http/https scheme only) substrings from
+// ParseURLs tries to extract unique url-like (http/https scheme only) substrings from
 // given text. Results may not be proper urls, since only sequence of matched
 // characters are searched for. This function is optimized for extraction of
 // urls from plain text where it can be mixed with punctuation symbols: trailing
@@ -53,5 +53,17 @@ func ParseURLs(content string) []string {
 		}
 		res[i] = s
 	}
-	return res
+	// since it is expected to have only a small amount of urls in provided
+	// text, this straightforward de-duplication algorithm would suffice
+	out := make([]string, 0, len(res))
+outerLoop:
+	for _, v := range res {
+		for _, v2 := range out {
+			if v == v2 {
+				continue outerLoop
+			}
+		}
+		out = append(out, v)
+	}
+	return out
 }

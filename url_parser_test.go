@@ -28,6 +28,19 @@ func ExampleParseURLs() {
 	// http://example.com/?param=foo;bar
 }
 
+func TestParseURLs__unique(t *testing.T) {
+	got := ParseURLs("Only two unique urls should be extracted from this text: http://google.com, http://twitter.com, http://google.com")
+	want := []string{"http://google.com", "http://twitter.com"}
+	if len(got) != len(want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+	for i, v := range got {
+		if v != want[i] {
+			t.Fatalf("want %v, got %v", want, got)
+		}
+	}
+}
+
 func TestBasicURLs(t *testing.T) {
 	got := ParseURLs("Testing this out http://doist.com/#about https://todoist.com/chrome")
 	want := []string{"http://doist.com/#about", "https://todoist.com/chrome"}
