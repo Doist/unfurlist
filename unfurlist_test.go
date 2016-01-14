@@ -14,70 +14,85 @@ import (
 
 func TestOpenGraph(t *testing.T) {
 	result := doRequest("/?content=Test+http://techcrunch.com/2015/11/09/basic-income-createathon/", t)
+	if len(result) != 1 {
+		t.Fatalf("invalid result length: %v", result)
+	}
 
 	want := "Robots To Eat All The Jobs? Hackers, Policy Wonks Collaborate On A Basic Income Createathon This\u00a0Weekend"
 	if result[0].Title != want {
-		t.Errorf("Title not valid, %q != %q", want, result[0].Title)
+		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
 	}
 
 	want = "https://tctechcrunch2011.files.wordpress.com/2015/11/basic-income-createathon.jpg?w=764\u0026h=400\u0026crop=1"
 	if result[0].Image != want {
-		t.Errorf("Image not valid, %q != %q", want, result[0].Image)
+		t.Errorf("unexpected Image, want %q, got %q", want, result[0].Image)
 	}
 }
 
 func TestOpenGraphTwitter(t *testing.T) {
 	result := doRequest("/?content=Test+https://twitter.com/amix3k/status/679355208091181056", t)
+	if len(result) != 1 {
+		t.Fatalf("invalid result length: %v", result)
+	}
 
 	want := "Help a family out of hunger and poverty"
 	if !strings.Contains(result[0].Title, want) {
-		t.Errorf("Title not valid, %q != %q", want, result[0].Title)
+		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
 	}
 }
 
 func TestOembed(t *testing.T) {
 	result := doRequest("/?content=Test+https://www.youtube.com/watch?v=Ey8FzGECjFA", t)
+	if len(result) != 1 {
+		t.Fatalf("invalid result length: %v", result)
+	}
 
 	want := "Jony Ive, J.J. Abrams, and Brian Grazer on Inventing Worlds in a Changing One - FULL CONVERSATION"
 	if result[0].Title != want {
-		t.Errorf("Title not valid, %q != %q", want, result[0].Title)
+		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
 	}
 
 	want = "https://i.ytimg.com/vi/Ey8FzGECjFA/hqdefault.jpg"
 	if result[0].Image != want {
-		t.Errorf("Image not valid, %q != %q", want, result[0].Image)
+		t.Errorf("unexpected Image, want %q, got %q", want, result[0].Image)
 	}
 
 	want = "video"
 	if result[0].Type != want {
-		t.Errorf("Type not valid, %q != %q", want, result[0].Type)
+		t.Errorf("unexpected Type, want %q, got %q", want, result[0].Type)
 	}
 }
 
 func TestHtml(t *testing.T) {
 	result := doRequest("/?content=https://news.ycombinator.com/", t)
+	if len(result) != 1 {
+		t.Fatalf("invalid result length: %v", result)
+	}
 
 	want := "Hacker News"
 	if result[0].Title != want {
-		t.Errorf("Title not valid, %q != %q", want, result[0].Title)
+		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
 	}
 
 	want = ""
 	if result[0].Image != want {
-		t.Errorf("Image not valid, %q != %q", want, result[0].Image)
+		t.Errorf("unexpected Image, want %q, got %q", want, result[0].Image)
 	}
 
 	want = "website"
 	if result[0].Type != want {
-		t.Errorf("Type not valid, %q != %q", want, result[0].Type)
+		t.Errorf("unexpected Type, want %q, got %q", want, result[0].Type)
 	}
 }
 
 func TestUnfurlist__multibyteHTML(t *testing.T) {
 	res := doRequest("/?content=http://news.chosun.com/site/data/html_dir/2009/09/24/2009092401755.html", t)
 	want := `심장정지 환자 못살리는 119 구급차`
+	if len(res) != 1 {
+		t.Fatalf("invalid result length: %v", res)
+	}
 	if res[0].Title != want {
-		t.Errorf("Title not valid, got %q, want %q", res[0].Title, want)
+		t.Errorf("unexpected Title, want %q, got %q", want, res[0].Title)
 	}
 }
 
@@ -101,13 +116,15 @@ func doRequest(url string, t *testing.T) []unfurlResult {
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("Techcrunch Open graph test didn't return %v", http.StatusOK)
+		t.Fatalf("invalid status code: %v", w.Code)
+		return nil
 	}
 
 	var result []unfurlResult
 	err := json.Unmarshal(w.Body.Bytes(), &result)
 	if err != nil {
-		t.Errorf("Result isn't JSON %v", w.Body.String())
+		t.Fatalf("Result isn't JSON %v", w.Body.String())
+		return nil
 	}
 
 	return result
