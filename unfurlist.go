@@ -42,6 +42,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"sync"
 
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/dyatlov/go-oembed/oembed"
@@ -60,6 +61,9 @@ const defaultMaxBodyChunckSize = 1024 * 64 //64KB
 
 type unfurlHandler struct {
 	Config *UnfurlConfig
+
+	mu       sync.Mutex
+	inFlight map[string]chan struct{} // in-flight urls processed
 }
 
 // Result that's returned back to the client
@@ -81,7 +85,8 @@ func (rs unfurlResults) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
 
 func New(config *UnfurlConfig) http.Handler {
 	h := &unfurlHandler{
-		Config: config,
+		Config:   config,
+		inFlight: make(map[string]chan struct{}),
 	}
 
 	if h.Config.MaxBodyChunckSize == 0 {
@@ -155,6 +160,27 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
 // If no match is found the result will be an object that just contains the URL
 func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, abort <-chan struct{}) {
+	for {
+		// spinlock-like loop to ensure we don't have two in-flight
+		// outgoing requests for the same url
+		h.mu.Lock()
+		if ch, ok := h.inFlight[url]; ok {
+			h.mu.Unlock()
+			<-ch // block until another goroutine processes the same url
+		} else {
+			ch = make(chan struct{})
+			h.inFlight[url] = ch
+			h.mu.Unlock()
+			defer func() {
+				h.mu.Lock()
+				delete(h.inFlight, url)
+				h.mu.Unlock()
+				close(ch)
+			}()
+			break
+		}
+	}
+
 	mc := h.Config.Cache
 
 	if mc != nil {
