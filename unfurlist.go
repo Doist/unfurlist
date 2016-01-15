@@ -50,14 +50,14 @@ import (
 
 // Configuration object for the HTTP handler
 type UnfurlConfig struct {
-	HTTPClient        *http.Client
-	Log               *log.Logger
-	OembedParser      *oembed.Oembed
-	Cache             *memcache.Client
-	MaxBodyChunckSize int64
+	HTTPClient       *http.Client
+	Log              *log.Logger
+	OembedParser     *oembed.Oembed
+	Cache            *memcache.Client
+	MaxBodyChunkSize int64
 }
 
-const defaultMaxBodyChunckSize = 1024 * 64 //64KB
+const defaultMaxBodyChunkSize = 1024 * 64 //64KB
 
 type unfurlHandler struct {
 	Config *UnfurlConfig
@@ -89,8 +89,8 @@ func New(config *UnfurlConfig) http.Handler {
 		inFlight: make(map[string]chan struct{}),
 	}
 
-	if h.Config.MaxBodyChunckSize == 0 {
-		h.Config.MaxBodyChunckSize = defaultMaxBodyChunckSize
+	if h.Config.MaxBodyChunkSize == 0 {
+		h.Config.MaxBodyChunkSize = defaultMaxBodyChunkSize
 	}
 
 	if h.Config.Log == nil {
@@ -245,7 +245,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 
 // fetchHTML fetches the primary chunk of the document
 // it does not care if the URL isn't HTML format
-// the chunk size is determined by h.Config.MaxBodyChunckSize
+// the chunk size is determined by h.Config.MaxBodyChunkSize
 func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
 	client := h.Config.HTTPClient
 	if client == nil {
@@ -261,7 +261,7 @@ func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
 		return nil, errors.New("bad status: " + response.Status)
 	}
 
-	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunckSize)
+	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunkSize)
 
 	return ioutil.ReadAll(firstChunk)
 }
