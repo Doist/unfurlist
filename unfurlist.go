@@ -83,9 +83,20 @@ func (rs unfurlResults) Len() int           { return len(rs) }
 func (rs unfurlResults) Less(i, j int) bool { return rs[i].idx < rs[j].idx }
 func (rs unfurlResults) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
 
+// New returns new initialized unfurl handler. If config is nil, default values
+// would be used.
 func New(config *UnfurlConfig) http.Handler {
+	var cfg *UnfurlConfig
+	// copy config so that modifications to it won't leak to value provided
+	// by caller
+	if config == nil {
+		cfg = new(UnfurlConfig)
+	} else {
+		tmp := *config
+		cfg = &tmp
+	}
 	h := &unfurlHandler{
-		Config:   config,
+		Config:   cfg,
 		inFlight: make(map[string]chan struct{}),
 	}
 
@@ -97,14 +108,15 @@ func New(config *UnfurlConfig) http.Handler {
 		h.Config.Log = log.New(ioutil.Discard, "", 0)
 	}
 
-	// Oembed
-	data, err := Asset("data/providers.json")
-	if err != nil {
-		panic(err)
+	if h.Config.OembedParser == nil {
+		data, err := Asset("data/providers.json")
+		if err != nil {
+			panic(err)
+		}
+		oe := oembed.NewOembed()
+		oe.ParseProviders(bytes.NewReader(data))
+		h.Config.OembedParser = oe
 	}
-	oe := oembed.NewOembed()
-	oe.ParseProviders(bytes.NewReader(data))
-	h.Config.OembedParser = oe
 
 	return h
 }
