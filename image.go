@@ -14,6 +14,14 @@ import (
 // imageDimensions tries to retrieve enough of image to get its dimensions. If
 // provided client is nil, http.DefaultClient is used.
 func imageDimensions(imageUrl string, client *http.Client) (width, height int, err error) {
+	switch {
+	case strings.HasPrefix(imageUrl, "http"):
+	case strings.HasPrefix(imageUrl, "//"):
+		// most probably scheme-independent url, use http as fallback
+		imageUrl = "http:" + imageUrl
+	default:
+		return 0, 0, errors.New("unsupported image url")
+	}
 	cl := client
 	if cl == nil {
 		cl = http.DefaultClient
