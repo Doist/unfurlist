@@ -26,6 +26,10 @@
 // 		}
 // 	]
 //
+// If handler was configured with FetchImageSize=true in its config, each hash
+// may have additional fields `image_width` and `image_height` specifying
+// dimensions of image provided by `image` attribute.
+//
 // Additionally you can supply `callback` to wrap the result in a JavaScript callback (JSONP),
 // the type of this response would be "application/x-javascript"
 
@@ -55,6 +59,7 @@ type UnfurlConfig struct {
 	OembedParser     *oembed.Oembed
 	Cache            *memcache.Client
 	MaxBodyChunkSize int64
+	FetchImageSize   bool
 }
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
@@ -73,6 +78,8 @@ type unfurlResult struct {
 	Type        string `json:"url_type,omitempty"`
 	Description string `json:"description,omitempty"`
 	Image       string `json:"image,omitempty"`
+	ImageWidth  int    `json:"image_width,omitempty"`
+	ImageHeight int    `json:"image_height,omitempty"`
 
 	idx int
 }
@@ -229,6 +236,14 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 			if matched = OpenGraphParseHTML(h, &result, htmlBody); !matched {
 				matched = BasicParseParseHTML(h, &result, htmlBody)
 			}
+		}
+	}
+
+	if h.Config.FetchImageSize && result.Image != "" {
+		if width, height, err := imageDimensions(result.Image, h.Config.HTTPClient); err != nil {
+			h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
+		} else {
+			result.ImageWidth, result.ImageHeight = width, height
 		}
 	}
 
