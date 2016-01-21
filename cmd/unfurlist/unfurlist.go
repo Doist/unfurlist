@@ -20,6 +20,7 @@ func main() {
 		cache             = ""
 		certfile, keyfile string
 		timeout           = 30 * time.Second
+		withDimensions    bool
 	)
 	flag.DurationVar(&timeout, "timeout", timeout, "timeout for remote i/o")
 	flag.StringVar(&listen, "listen", listen, "`address` to listen, set both -sslcert and -sslkey for HTTPS")
@@ -27,6 +28,7 @@ func main() {
 	flag.StringVar(&certfile, "sslcert", "", "path to certificate `file` (PEM)")
 	flag.StringVar(&keyfile, "sslkey", "", "path to certificate key `file` (PEM)")
 	flag.StringVar(&cache, "cache", cache, "`address` to memcached client (both host and ip)")
+	flag.BoolVar(&withDimensions, "withDimensions", withDimensions, "return image dimensions in result where possible (extra external request to fetch image)")
 	flag.Parse()
 
 	if timeout < 0 {
@@ -36,7 +38,8 @@ func main() {
 		HTTPClient: &http.Client{
 			Timeout: timeout,
 		},
-		Log: log.New(os.Stderr, "", log.LstdFlags),
+		Log:            log.New(os.Stderr, "", log.LstdFlags),
+		FetchImageSize: withDimensions,
 	}
 	if cache != "" {
 		log.Print("Enable cache at ", cache)
