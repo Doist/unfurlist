@@ -25,7 +25,7 @@ func imageDimensions(imageUrl string, client *http.Client) (width, height int, e
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return 0, 0, errors.New(http.StatusText(resp.StatusCode))
+		return 0, 0, errors.New(resp.Status)
 	}
 	switch ct := strings.ToLower(resp.Header.Get("Content-Type")); ct {
 	case "image/jpeg", "image/png", "image/gif":
