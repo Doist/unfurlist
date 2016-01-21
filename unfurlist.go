@@ -225,23 +225,14 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	matched := OembedParseUrl(h, &result)
 
 	if !matched {
-		// Parse the HTML
-		htmlBody, err := h.fetchHTML(result.URL)
-		if err != nil {
-			select {
-			case resp <- result:
-			case <-abort:
+		if htmlBody, err := h.fetchHTML(result.URL); err == nil {
+			if matched = OpenGraphParseHTML(h, &result, htmlBody); !matched {
+				matched = BasicParseParseHTML(h, &result, htmlBody)
 			}
-			return
-		}
-		// Try OpenGraph
-		if !OpenGraphParseHTML(h, &result, htmlBody) {
-			// Fallback to parsing basic HTML
-			BasicParseParseHTML(h, &result, htmlBody)
 		}
 	}
 
-	if mc != nil {
+	if matched && mc != nil {
 		cdata, err := json.Marshal(result)
 		if err == nil {
 			h.Config.Log.Printf("Cache update for %q", url)
