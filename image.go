@@ -8,20 +8,40 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
+	"net/url"
 	"strings"
 )
+
+var errEmptyImageUrl = errors.New("empty image url")
+
+// absoluteImageUrl makes imageUrl absolute if it's not. Image url can either be
+// relative or schemaless url.
+func absoluteImageUrl(originUrl, imageUrl string) (string, error) {
+	if imageUrl == "" {
+		return "", errEmptyImageUrl
+	}
+	if strings.HasPrefix(imageUrl, "http") {
+		return imageUrl, nil
+	}
+	iu, err := url.Parse(imageUrl)
+	if err != nil {
+		return "", err
+	}
+	switch iu.Scheme {
+	case "http", "https", "":
+	default:
+		return "", fmt.Errorf("unsupported url scheme %q", iu.Scheme)
+	}
+	base, err := url.Parse(originUrl)
+	if err != nil {
+		return "", err
+	}
+	return base.ResolveReference(iu).String(), nil
+}
 
 // imageDimensions tries to retrieve enough of image to get its dimensions. If
 // provided client is nil, http.DefaultClient is used.
 func imageDimensions(imageUrl string, client *http.Client) (width, height int, err error) {
-	switch {
-	case strings.HasPrefix(imageUrl, "http"):
-	case strings.HasPrefix(imageUrl, "//"):
-		// most probably scheme-independent url, use http as fallback
-		imageUrl = "http:" + imageUrl
-	default:
-		return 0, 0, errors.New("unsupported image url")
-	}
 	cl := client
 	if cl == nil {
 		cl = http.DefaultClient

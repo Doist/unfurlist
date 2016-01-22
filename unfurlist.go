@@ -239,12 +239,19 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		}
 	}
 
-	if h.Config.FetchImageSize && result.Image != "" {
-		if width, height, err := imageDimensions(result.Image, h.Config.HTTPClient); err != nil {
-			h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
-		} else {
-			result.ImageWidth, result.ImageHeight = width, height
+	switch absUrl, err := absoluteImageUrl(result.URL, result.Image); err {
+	case errEmptyImageUrl:
+	case nil:
+		result.Image = absUrl
+		if h.Config.FetchImageSize {
+			if width, height, err := imageDimensions(result.Image, h.Config.HTTPClient); err != nil {
+				h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
+			} else {
+				result.ImageWidth, result.ImageHeight = width, height
+			}
 		}
+	default:
+		h.Config.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
 	}
 
 	if matched && mc != nil {
