@@ -48,6 +48,20 @@ func TestTitleParser(t *testing.T) {
 	}
 }
 
+func BenchmarkTitleParser(b *testing.B) {
+	for j := 0; j < b.N; j++ {
+		for i, c := range titleTestCases {
+			title, err := findTitle([]byte(c.body))
+			if err != nil {
+				b.Fatalf("case %d failed: %v", i, err)
+			}
+			if title != c.want {
+				b.Fatalf("case %d mismatch: %q != %q", i, title, c.want)
+			}
+		}
+	}
+}
+
 var titleTestCases = []struct {
 	body string
 	want string
