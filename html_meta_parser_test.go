@@ -5,12 +5,33 @@ import (
 	"testing"
 )
 
+func TestTitleParser__explicitCharset(t *testing.T) {
+	// this file has its charset defined at around ~1600 bytes, WHATWG
+	// charset detection algorithm [1] fails here as it only scans first
+	// 1024 bytes, so we also need to rely on server-provided charset
+	// parameter from Content-Type header
+	//
+	// [1]: https://html.spec.whatwg.org/multipage/syntax.html#determining-the-character-encoding
+	data, err := ioutil.ReadFile("testdata/no-charset-in-first-1024bytes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	title, err := findTitle(data, "text/html; charset=windows-1251")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `Кубань и Адыгея объединят усилия по созданию курорта "Лагонаки"`
+	if title != want {
+		t.Fatalf("unexpected title: got %q, want %q", title, want)
+	}
+}
+
 func TestTitleParser__multibyte1(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/korean")
 	if err != nil {
 		t.Fatal(err)
 	}
-	title, err := findTitle(data)
+	title, err := findTitle(data, "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +46,7 @@ func TestTitleParser__multibyte2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	title, err := findTitle(data)
+	title, err := findTitle(data, "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +58,7 @@ func TestTitleParser__multibyte2(t *testing.T) {
 
 func TestTitleParser(t *testing.T) {
 	for i, c := range titleTestCases {
-		title, err := findTitle([]byte(c.body))
+		title, err := findTitle([]byte(c.body), "text/html")
 		if err != nil {
 			t.Errorf("case %d failed: %v", i, err)
 			continue
@@ -51,7 +72,7 @@ func TestTitleParser(t *testing.T) {
 func BenchmarkTitleParser(b *testing.B) {
 	for j := 0; j < b.N; j++ {
 		for i, c := range titleTestCases {
-			title, err := findTitle([]byte(c.body))
+			title, err := findTitle([]byte(c.body), "text/html")
 			if err != nil {
 				b.Fatalf("case %d failed: %v", i, err)
 			}

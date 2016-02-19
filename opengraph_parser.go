@@ -13,17 +13,17 @@ import (
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
-func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
+func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
 	if !strings.HasPrefix(http.DetectContentType(htmlBody), "text/html") {
 		return false
 	}
-	// use explicit "text/html" type here but not the one returned by
+	// use explicit content type received from headers here but not the one returned by
 	// http.DetectContentType because this function scans only first 512
 	// bytes and can report content as "text/html; charset=utf-8" even for
 	// bodies having characters outside utf8 range later; use
 	// charset.NewReader that relies on charset.DetermineEncoding which
 	// implements more elaborate encoding detection specific to html content
-	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), "text/html")
+	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), ct)
 	if err != nil {
 		return false
 	}

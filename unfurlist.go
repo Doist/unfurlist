@@ -232,9 +232,9 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	matched := OembedParseUrl(h, &result)
 
 	if !matched {
-		if htmlBody, err := h.fetchHTML(result.URL); err == nil {
-			if matched = OpenGraphParseHTML(h, &result, htmlBody); !matched {
-				matched = BasicParseParseHTML(h, &result, htmlBody)
+		if htmlBody, ct, err := h.fetchHTML(result.URL); err == nil {
+			if matched = OpenGraphParseHTML(h, &result, htmlBody, ct); !matched {
+				matched = BasicParseParseHTML(h, &result, htmlBody, ct)
 			}
 		}
 	}
@@ -271,24 +271,25 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 // fetchHTML fetches the primary chunk of the document
 // it does not care if the URL isn't HTML format
 // the chunk size is determined by h.Config.MaxBodyChunkSize
-func (h *unfurlHandler) fetchHTML(URL string) ([]byte, error) {
+func (h *unfurlHandler) fetchHTML(URL string) (head []byte, contentType string, err error) {
 	client := h.Config.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
 	}
 	response, err := client.Get(URL)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode >= http.StatusBadRequest {
-		return nil, errors.New("bad status: " + response.Status)
+		return nil, "", errors.New("bad status: " + response.Status)
 	}
 
 	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunkSize)
 
-	return ioutil.ReadAll(firstChunk)
+	head, err = ioutil.ReadAll(firstChunk)
+	return head, response.Header.Get("Content-Type"), err
 }
 
 // mcKey returns string of hex representation of sha1 sum of string provided.

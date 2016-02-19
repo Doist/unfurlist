@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
-func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte) bool {
+func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
 	result.Type = http.DetectContentType(htmlBody)
 	switch {
 	case strings.HasPrefix(result.Type, "image/"):
@@ -23,7 +23,9 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte
 		result.Image = result.URL
 	case strings.HasPrefix(result.Type, "text/"):
 		result.Type = "website"
-		if title, err := findTitle(htmlBody); err == nil {
+		// pass Content-Type from response headers as it may have
+		// charset definition like "text/html; charset=windows-1251"
+		if title, err := findTitle(htmlBody, ct); err == nil {
 			result.Title = title
 		}
 	case strings.HasPrefix(result.Type, "video/"):
@@ -32,8 +34,8 @@ func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte
 	return true
 }
 
-func findTitle(htmlBody []byte) (title string, err error) {
-	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), "text/html")
+func findTitle(htmlBody []byte, ct string) (title string, err error) {
+	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), ct)
 	if err != nil {
 		return "", err
 	}
