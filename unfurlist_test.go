@@ -210,6 +210,8 @@ func replayHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	// avoid type auto-detecting of saved pages
+	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(d))
 }
 
