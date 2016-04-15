@@ -100,7 +100,7 @@ func doRequest(url string, t *testing.T) []unfurlResult {
 	pp := newPipePool()
 	defer pp.Close()
 	go http.Serve(pp, http.HandlerFunc(replayHandler))
-	config := UnfurlConfig{
+	config := Config{
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				Dial:    pp.Dial,
@@ -134,7 +134,7 @@ func TestUnfurlist__singleInFlightRequest(t *testing.T) {
 	pp := newPipePool()
 	defer pp.Close()
 	go http.Serve(pp, http.HandlerFunc(replayHandlerSerial(t)))
-	config := UnfurlConfig{
+	config := Config{
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				Dial:    pp.Dial,

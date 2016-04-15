@@ -52,8 +52,8 @@ import (
 	"github.com/dyatlov/go-oembed/oembed"
 )
 
-// UnfurlConfig should be used to adjust configuration of unfurl handler
-type UnfurlConfig struct {
+// Config should be used to adjust configuration of unfurl handler
+type Config struct {
 	HTTPClient       *http.Client
 	Log              *log.Logger
 	OembedParser     *oembed.Oembed
@@ -65,7 +65,7 @@ type UnfurlConfig struct {
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
 
 type unfurlHandler struct {
-	Config *UnfurlConfig
+	Config *Config
 
 	mu       sync.Mutex
 	inFlight map[string]chan struct{} // in-flight urls processed
@@ -92,12 +92,12 @@ func (rs unfurlResults) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
 
 // New returns new initialized unfurl handler. If config is nil, default values
 // would be used.
-func New(config *UnfurlConfig) http.Handler {
-	var cfg *UnfurlConfig
+func New(config *Config) http.Handler {
+	var cfg *Config
 	// copy config so that modifications to it won't leak to value provided
 	// by caller
 	if config == nil {
-		cfg = new(UnfurlConfig)
+		cfg = new(Config)
 	} else {
 		tmp := *config
 		cfg = &tmp

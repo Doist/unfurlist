@@ -34,7 +34,7 @@ func main() {
 	if timeout < 0 {
 		timeout = 0
 	}
-	config := unfurlist.UnfurlConfig{
+	config := unfurlist.Config{
 		HTTPClient: &http.Client{
 			Timeout: timeout,
 		},
