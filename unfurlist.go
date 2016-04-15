@@ -35,7 +35,6 @@
 package unfurlist
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
@@ -45,9 +44,9 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 
-	"github.com/Doist/unfurlist/internal/assets"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/dyatlov/go-oembed/oembed"
 )
@@ -116,12 +115,8 @@ func New(config *Config) http.Handler {
 	}
 
 	if h.Config.OembedParser == nil {
-		data, err := assets.Asset("data/providers.json")
-		if err != nil {
-			panic(err)
-		}
 		oe := oembed.NewOembed()
-		oe.ParseProviders(bytes.NewReader(data))
+		oe.ParseProviders(strings.NewReader(providersData))
 		h.Config.OembedParser = oe
 	}
 
@@ -299,3 +294,5 @@ func mcKey(s string) string {
 	io.WriteString(h, s)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
+
+//go:generate go run assets-update.go
