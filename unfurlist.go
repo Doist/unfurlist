@@ -32,7 +32,6 @@
 //
 // Additionally you can supply `callback` to wrap the result in a JavaScript callback (JSONP),
 // the type of this response would be "application/x-javascript"
-
 package unfurlist
 
 import (
