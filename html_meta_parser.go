@@ -56,9 +56,8 @@ func findTitle(htmlBody []byte, ct string) (title string, err error) {
 			case atom.Title:
 				if tt := z.Next(); tt == html.TextToken {
 					return string(z.Text()), nil
-				} else {
-					goto notFound
 				}
+				goto notFound
 			}
 		}
 	}

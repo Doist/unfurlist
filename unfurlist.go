@@ -1,4 +1,4 @@
-// unfurlist is a simple service that unfurls URLs and provides more information about them.
+// Package unfurlist implements a service that unfurls URLs and provides more information about them.
 //
 // The current version supports Open Graph and oEmbed formats, Twitter card format is also planned.
 // If the URL does not support common formats it falls back to looking at HTML tags such as
@@ -52,7 +52,7 @@ import (
 	"github.com/dyatlov/go-oembed/oembed"
 )
 
-// Configuration object for the HTTP handler
+// UnfurlConfig should be used to adjust configuration of unfurl handler
 type UnfurlConfig struct {
 	HTTPClient       *http.Client
 	Log              *log.Logger
@@ -239,10 +239,10 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		}
 	}
 
-	switch absUrl, err := absoluteImageUrl(result.URL, result.Image); err {
-	case errEmptyImageUrl:
+	switch absURL, err := absoluteImageURL(result.URL, result.Image); err {
+	case errEmptyImageURL:
 	case nil:
-		result.Image = absUrl
+		result.Image = absURL
 		if h.Config.FetchImageSize {
 			if width, height, err := imageDimensions(result.Image, h.Config.HTTPClient); err != nil {
 				h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)

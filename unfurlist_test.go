@@ -183,15 +183,14 @@ func replayHandlerSerial(t *testing.T) func(w http.ResponseWriter, r *http.Reque
 			inFlight.mu.Unlock()
 			t.Fatalf("request for %q is already in flight", key)
 			return
-		} else {
-			inFlight.reqs[key] = struct{}{}
-			inFlight.mu.Unlock()
-			defer func() {
-				inFlight.mu.Lock()
-				delete(inFlight.reqs, key)
-				inFlight.mu.Unlock()
-			}()
 		}
+		inFlight.reqs[key] = struct{}{}
+		inFlight.mu.Unlock()
+		defer func() {
+			inFlight.mu.Lock()
+			delete(inFlight.reqs, key)
+			inFlight.mu.Unlock()
+		}()
 
 		d, ok := remoteData[r.Host+r.URL.RequestURI()]
 		if !ok {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	_ "image/gif"
+	_ "image/gif" // register supported image types
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
@@ -12,18 +12,18 @@ import (
 	"strings"
 )
 
-var errEmptyImageUrl = errors.New("empty image url")
+var errEmptyImageURL = errors.New("empty image url")
 
 // absoluteImageUrl makes imageUrl absolute if it's not. Image url can either be
 // relative or schemaless url.
-func absoluteImageUrl(originUrl, imageUrl string) (string, error) {
-	if imageUrl == "" {
-		return "", errEmptyImageUrl
+func absoluteImageURL(originURL, imageURL string) (string, error) {
+	if imageURL == "" {
+		return "", errEmptyImageURL
 	}
-	if strings.HasPrefix(imageUrl, "http") {
-		return imageUrl, nil
+	if strings.HasPrefix(imageURL, "http") {
+		return imageURL, nil
 	}
-	iu, err := url.Parse(imageUrl)
+	iu, err := url.Parse(imageURL)
 	if err != nil {
 		return "", err
 	}
@@ -32,7 +32,7 @@ func absoluteImageUrl(originUrl, imageUrl string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported url scheme %q", iu.Scheme)
 	}
-	base, err := url.Parse(originUrl)
+	base, err := url.Parse(originURL)
 	if err != nil {
 		return "", err
 	}
@@ -41,12 +41,12 @@ func absoluteImageUrl(originUrl, imageUrl string) (string, error) {
 
 // imageDimensions tries to retrieve enough of image to get its dimensions. If
 // provided client is nil, http.DefaultClient is used.
-func imageDimensions(imageUrl string, client *http.Client) (width, height int, err error) {
+func imageDimensions(imageURL string, client *http.Client) (width, height int, err error) {
 	cl := client
 	if cl == nil {
 		cl = http.DefaultClient
 	}
-	resp, err := cl.Get(imageUrl)
+	resp, err := cl.Get(imageURL)
 	if err != nil {
 		return 0, 0, err
 	}
