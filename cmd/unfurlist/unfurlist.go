@@ -27,7 +27,7 @@ func main() {
 	flag.StringVar(&pprofListen, "pprof", pprofListen, "`address` to serve pprof data at (usually localhost)")
 	flag.StringVar(&certfile, "sslcert", "", "path to certificate `file` (PEM)")
 	flag.StringVar(&keyfile, "sslkey", "", "path to certificate key `file` (PEM)")
-	flag.StringVar(&cache, "cache", cache, "`address` to memcached client (both host and ip)")
+	flag.StringVar(&cache, "cache", cache, "`address` of memcached, if unset, caching is not used")
 	flag.BoolVar(&withDimensions, "withDimensions", withDimensions, "return image dimensions in result where possible (extra external request to fetch image)")
 	flag.Parse()
 
