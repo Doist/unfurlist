@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/Doist/unfurlist"
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/doist/unfurlist"
 )
 
 func main() {
