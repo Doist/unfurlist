@@ -3,7 +3,7 @@
 // data/providers.json
 // DO NOT EDIT!
 
-package unfurlist
+package assets
 
 import (
 	"bytes"

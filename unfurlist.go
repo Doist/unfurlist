@@ -47,6 +47,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/Doist/unfurlist/internal/assets"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/dyatlov/go-oembed/oembed"
 )
@@ -115,7 +116,7 @@ func New(config *UnfurlConfig) http.Handler {
 	}
 
 	if h.Config.OembedParser == nil {
-		data, err := Asset("data/providers.json")
+		data, err := assets.Asset("data/providers.json")
 		if err != nil {
 			panic(err)
 		}
