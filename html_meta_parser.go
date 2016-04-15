@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
-func BasicParseParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
+func basicParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
 	result.Type = http.DetectContentType(htmlBody)
 	switch {
 	case strings.HasPrefix(result.Type, "image/"):

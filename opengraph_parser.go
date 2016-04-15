@@ -13,7 +13,7 @@ import (
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
-func OpenGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
+func openGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
 	if !strings.HasPrefix(http.DetectContentType(htmlBody), "text/html") {
 		return false
 	}

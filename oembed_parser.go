@@ -3,7 +3,7 @@
 
 package unfurlist
 
-func OembedParseUrl(h *unfurlHandler, result *unfurlResult) bool {
+func oembedParseURL(h *unfurlHandler, result *unfurlResult) bool {
 	item := h.Config.OembedParser.FindItem(result.URL)
 	if item == nil {
 		return false

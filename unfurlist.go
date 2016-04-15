@@ -228,12 +228,12 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	result.URL = url
 
 	// Try oEmbed
-	matched := OembedParseUrl(h, &result)
+	matched := oembedParseURL(h, &result)
 
 	if !matched {
 		if htmlBody, ct, err := h.fetchHTML(result.URL); err == nil {
-			if matched = OpenGraphParseHTML(h, &result, htmlBody, ct); !matched {
-				matched = BasicParseParseHTML(h, &result, htmlBody, ct)
+			if matched = openGraphParseHTML(h, &result, htmlBody, ct); !matched {
+				matched = basicParseHTML(h, &result, htmlBody, ct)
 			}
 		}
 	}
