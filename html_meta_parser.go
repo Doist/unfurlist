@@ -25,8 +25,9 @@ func basicParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct 
 		result.Type = "website"
 		// pass Content-Type from response headers as it may have
 		// charset definition like "text/html; charset=windows-1251"
-		if title, err := findTitle(htmlBody, ct); err == nil {
+		if title, desc, err := extractData(htmlBody, ct); err == nil {
 			result.Title = title
+			result.Description = desc
 		}
 	case strings.HasPrefix(result.Type, "video/"):
 		result.Type = "video"
@@ -34,37 +35,71 @@ func basicParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct 
 	return true
 }
 
-func findTitle(htmlBody []byte, ct string) (title string, err error) {
+func extractData(htmlBody []byte, ct string) (title, description string, err error) {
 	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), ct)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	z := html.NewTokenizer(bodyReader)
+tokenize:
 	for {
 		tt := z.Next()
 		switch tt {
 		case html.ErrorToken:
 			if z.Err() == io.EOF {
-				goto notFound
+				goto finish
 			}
-			return "", z.Err()
+			return "", "", z.Err()
 		case html.StartTagToken:
-			name, _ := z.TagName()
+			name, hasAttr := z.TagName()
 			switch atom.Lookup(name) {
 			case atom.Body:
-				goto notFound // title should preceed body tag
+				goto finish // title/meta should preceed body tag
 			case atom.Title:
-				if tt := z.Next(); tt == html.TextToken {
-					return string(z.Text()), nil
+				if title != "" {
+					continue
 				}
-				goto notFound
+				if tt := z.Next(); tt == html.TextToken {
+					title = string(z.Text())
+					if description != "" {
+						goto finish
+					}
+				}
+			case atom.Meta:
+				if description != "" {
+					continue
+				}
+				var content []byte
+				var isDescription bool
+				for hasAttr {
+					var k, v []byte
+					k, v, hasAttr = z.TagAttr()
+					switch string(k) {
+					case "name":
+						if !bytes.Equal(v, []byte("description")) {
+							continue tokenize
+						}
+						isDescription = true
+					case "content":
+						content = v
+					}
+				}
+				if isDescription && len(content) > 0 {
+					description = string(content)
+					if title != "" {
+						goto finish
+					}
+				}
 			}
 		}
 	}
-notFound:
-	return "", errNoTitleTag
+finish:
+	if title != "" || description != "" {
+		return title, description, nil
+	}
+	return "", "", errNoMetadataFound
 }
 
 var (
-	errNoTitleTag = errors.New("no title tag found")
+	errNoMetadataFound = errors.New("no metadata found")
 )

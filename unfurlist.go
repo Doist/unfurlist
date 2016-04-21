@@ -1,8 +1,8 @@
 // Package unfurlist implements a service that unfurls URLs and provides more information about them.
 //
 // The current version supports Open Graph and oEmbed formats, Twitter card format is also planned.
-// If the URL does not support common formats it falls back to looking at HTML tags such as
-// <title>.
+// If the URL does not support common formats, unfurlist falls back to looking at common HTML tags
+// such as <title> and <meta name="description">.
 //
 // The endpoint accepts GET requests with `content` as the main argument.
 // It then returns a JSON encoded list of URLs that were parsed.

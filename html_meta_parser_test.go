@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTitleParser__explicitCharset(t *testing.T) {
+func TestExtractData_explicitCharset(t *testing.T) {
 	// this file has its charset defined at around ~1600 bytes, WHATWG
 	// charset detection algorithm [1] fails here as it only scans first
 	// 1024 bytes, so we also need to rely on server-provided charset
@@ -16,7 +16,7 @@ func TestTitleParser__explicitCharset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	title, err := findTitle(data, "text/html; charset=windows-1251")
+	title, _, err := extractData(data, "text/html; charset=windows-1251")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,12 +26,12 @@ func TestTitleParser__explicitCharset(t *testing.T) {
 	}
 }
 
-func TestTitleParser__multibyte1(t *testing.T) {
+func TestExtractData_multibyte1(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/korean")
 	if err != nil {
 		t.Fatal(err)
 	}
-	title, err := findTitle(data, "text/html")
+	title, _, err := extractData(data, "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,12 +41,12 @@ func TestTitleParser__multibyte1(t *testing.T) {
 	}
 }
 
-func TestTitleParser__multibyte2(t *testing.T) {
+func TestExtractData_multibyte2(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/japanese")
 	if err != nil {
 		t.Fatal(err)
 	}
-	title, err := findTitle(data, "text/html")
+	title, _, err := extractData(data, "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,9 +56,9 @@ func TestTitleParser__multibyte2(t *testing.T) {
 	}
 }
 
-func TestTitleParser(t *testing.T) {
+func TestExtractData(t *testing.T) {
 	for i, c := range titleTestCases {
-		title, err := findTitle([]byte(c.body), "text/html")
+		title, _, err := extractData([]byte(c.body), "text/html")
 		if err != nil {
 			t.Errorf("case %d failed: %v", i, err)
 			continue
@@ -69,10 +69,30 @@ func TestTitleParser(t *testing.T) {
 	}
 }
 
-func BenchmarkTitleParser(b *testing.B) {
+func TestExtractData_full(t *testing.T) {
+	body := `<html>
+	<meta name="keywords" content="test">
+	<meta name="description" content="hello page">
+	<meta name="description" content="ignored">
+	<title>Hello</title>
+	</html>
+	`
+	title, desc, err := extractData([]byte(body), "text/html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Hello"; title != want {
+		t.Errorf("got title %q, want %q", title, want)
+	}
+	if want := "hello page"; desc != want {
+		t.Errorf("got description %q, want %q", desc, want)
+	}
+}
+
+func BenchmarkExtractData(b *testing.B) {
 	for j := 0; j < b.N; j++ {
 		for i, c := range titleTestCases {
-			title, err := findTitle([]byte(c.body), "text/html")
+			title, _, err := extractData([]byte(c.body), "text/html")
 			if err != nil {
 				b.Fatalf("case %d failed: %v", i, err)
 			}
