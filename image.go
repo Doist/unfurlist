@@ -46,7 +46,12 @@ func imageDimensions(imageURL string, client *http.Client) (width, height int, e
 	if cl == nil {
 		cl = http.DefaultClient
 	}
-	resp, err := cl.Get(imageURL)
+	req, err := http.NewRequest(http.MethodGet, imageURL, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := cl.Do(req)
 	if err != nil {
 		return 0, 0, err
 	}
