@@ -4,7 +4,7 @@
 // If the URL does not support common formats, unfurlist falls back to looking at common HTML tags
 // such as <title> and <meta name="description">.
 //
-// The endpoint accepts GET requests with `content` as the main argument.
+// The endpoint accepts GET and POST requests with `content` as the main argument.
 // It then returns a JSON encoded list of URLs that were parsed.
 //
 // If an URL lacks an attribute (e.g. `image`) then this attribute will be omitted from the result.
@@ -125,10 +125,20 @@ func New(config *Config) http.Handler {
 }
 
 func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	qs := r.URL.Query()
+	switch r.Method {
+	case http.MethodGet, http.MethodPost:
+	default:
+		w.Header().Set("Allow", "GET, POST")
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
 
-	content := qs.Get("content")
-	callback := qs.Get("callback")
+	content := r.Form.Get("content")
+	callback := r.Form.Get("callback")
 
 	if content == "" {
 		http.Error(w, "Bad request", http.StatusBadRequest)
