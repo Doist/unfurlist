@@ -62,6 +62,7 @@ type Config struct {
 }
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
+const userAgent = "unfurlist (https://github.com/Doist/unfurlist)"
 
 type unfurlHandler struct {
 	Config *Config
@@ -271,7 +272,12 @@ func (h *unfurlHandler) fetchHTML(URL string) (head []byte, contentType string, 
 	if client == nil {
 		client = http.DefaultClient
 	}
-	response, err := client.Get(URL)
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	response, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
