@@ -135,7 +135,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urls := ParseURLs(content)
+	urls := parseURLsMax(content, 20)
 
 	jobResults := make(chan unfurlResult, 1)
 	results := make(unfurlResults, 0, len(urls))

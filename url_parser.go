@@ -16,9 +16,11 @@ var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+
 // urls from plain text where it can be mixed with punctuation symbols: trailing
 // symbols []()<>,;. are removed, but // trailing >]) are left if any opening
 // <[( is found inside url.
-func ParseURLs(content string) []string {
+func ParseURLs(content string) []string { return parseURLsMax(content, -1) }
+
+func parseURLsMax(content string, maxItems int) []string {
 	const punct = `[]()<>{},;.`
-	res := reUrls.FindAllString(content, -1)
+	res := reUrls.FindAllString(content, maxItems)
 	for i, s := range res {
 		// remove all combinations of trailing >)],. characters only if
 		// no similar characters were found somewhere in the middle
