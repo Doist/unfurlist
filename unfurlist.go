@@ -227,14 +227,10 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		return
 	}
 
-	mc := h.Config.Cache
-
-	if mc != nil {
-		it, err := mc.Get(mcKey(url))
-		if err == nil {
+	if mc := h.Config.Cache; mc != nil {
+		if it, err := mc.Get(mcKey(url)); err == nil {
 			var cached unfurlResult
-			err = json.Unmarshal(it.Value, &cached)
-			if err == nil {
+			if err = json.Unmarshal(it.Value, &cached); err == nil {
 				h.Config.Log.Printf("Cache hit for %q", url)
 				cached.idx = i
 				select {
@@ -272,9 +268,8 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		h.Config.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
 	}
 
-	if matched && mc != nil {
-		cdata, err := json.Marshal(result)
-		if err == nil {
+	if mc := h.Config.Cache; matched && mc != nil {
+		if cdata, err := json.Marshal(result); err == nil {
 			h.Config.Log.Printf("Cache update for %q", url)
 			mc.Set(&memcache.Item{Key: mcKey(url), Value: cdata})
 		}
