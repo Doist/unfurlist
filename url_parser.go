@@ -55,17 +55,14 @@ func parseURLsMax(content string, maxItems int) []string {
 		}
 		res[i] = s
 	}
-	// since it is expected to have only a small amount of urls in provided
-	// text, this straightforward de-duplication algorithm would suffice
-	out := make([]string, 0, len(res))
-outerLoop:
+	out := res[:0]
+	seen := make(map[string]struct{})
 	for _, v := range res {
-		for _, v2 := range out {
-			if v == v2 {
-				continue outerLoop
-			}
+		if _, ok := seen[v]; ok {
+			continue
 		}
 		out = append(out, v)
+		seen[v] = struct{}{}
 	}
 	return out
 }
