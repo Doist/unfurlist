@@ -236,6 +236,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 			err = json.Unmarshal(it.Value, &cached)
 			if err == nil {
 				h.Config.Log.Printf("Cache hit for %q", url)
+				cached.idx = i
 				select {
 				case resp <- cached:
 				case <-abort:
