@@ -220,6 +220,7 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 
 	result := unfurlResult{idx: i, URL: url}
 	if h.Config.pmap != nil && h.Config.pmap.Match(url) { // blacklisted
+		h.Config.Log.Printf("Blacklisted %q", url)
 		select {
 		case resp <- result:
 		case <-abort:
