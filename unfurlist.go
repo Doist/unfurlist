@@ -59,6 +59,9 @@ type Config struct {
 	Cache            *memcache.Client
 	MaxBodyChunkSize int64
 	FetchImageSize   bool
+	BlacklistPrefix  []string // skip unfurling of urls having these prefixes
+
+	pmap *prefixMap // built from BlacklistPrefix
 }
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
@@ -105,6 +108,10 @@ func New(config *Config) http.Handler {
 	h := &unfurlHandler{
 		Config:   cfg,
 		inFlight: make(map[string]chan struct{}),
+	}
+
+	if len(h.Config.BlacklistPrefix) > 0 {
+		h.Config.pmap = newPrefixMap(h.Config.BlacklistPrefix)
 	}
 
 	if h.Config.MaxBodyChunkSize == 0 {
@@ -211,6 +218,15 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		}
 	}
 
+	result := unfurlResult{idx: i, URL: url}
+	if h.Config.pmap != nil && h.Config.pmap.Match(url) { // blacklisted
+		select {
+		case resp <- result:
+		case <-abort:
+		}
+		return
+	}
+
 	mc := h.Config.Cache
 
 	if mc != nil {
@@ -228,11 +244,6 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 			}
 		}
 	}
-
-	var result unfurlResult
-
-	result = unfurlResult{idx: i}
-	result.URL = url
 
 	// Try oEmbed
 	matched := oembedParseURL(h, &result)

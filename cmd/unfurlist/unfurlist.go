@@ -2,7 +2,10 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -19,6 +22,7 @@ func main() {
 		pprofListen       = "127.0.0.1:6060"
 		cache             = ""
 		certfile, keyfile string
+		blacklist         string
 		timeout           = 30 * time.Second
 		withDimensions    bool
 	)
@@ -28,6 +32,7 @@ func main() {
 	flag.StringVar(&certfile, "sslcert", "", "path to certificate `file` (PEM)")
 	flag.StringVar(&keyfile, "sslkey", "", "path to certificate key `file` (PEM)")
 	flag.StringVar(&cache, "cache", cache, "`address` of memcached, if unset, caching is not used")
+	flag.StringVar(&blacklist, "blacklist", blacklist, "path to `file` with url prefixes to blacklist, one per line")
 	flag.BoolVar(&withDimensions, "withDimensions", withDimensions, "return image dimensions in result where possible (extra external request to fetch image)")
 	flag.Parse()
 
@@ -40,6 +45,13 @@ func main() {
 		},
 		Log:            log.New(os.Stderr, "", log.LstdFlags),
 		FetchImageSize: withDimensions,
+	}
+	if blacklist != "" {
+		prefixes, err := readBlacklist(blacklist)
+		if err != nil {
+			log.Fatal(err)
+		}
+		config.BlacklistPrefix = prefixes
 	}
 	if cache != "" {
 		log.Print("Enable cache at ", cache)
@@ -64,4 +76,23 @@ func main() {
 	} else {
 		log.Fatal(http.ListenAndServe(listen, handler))
 	}
+}
+
+func readBlacklist(blacklist string) ([]string, error) {
+	f, err := os.Open(blacklist)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	s := bufio.NewScanner(io.LimitReader(f, 512*1024))
+	var prefixes []string
+	for s.Scan() {
+		if bytes.HasPrefix(s.Bytes(), []byte("http")) {
+			prefixes = append(prefixes, s.Text())
+		}
+	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+	return prefixes, nil
 }
