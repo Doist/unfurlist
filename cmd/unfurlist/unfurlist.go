@@ -5,8 +5,10 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -23,8 +25,10 @@ func main() {
 		cache             = ""
 		certfile, keyfile string
 		blacklist         string
+		privateSubnets    string
 		timeout           = 30 * time.Second
 		withDimensions    bool
+		globalOnly        bool
 	)
 	flag.DurationVar(&timeout, "timeout", timeout, "timeout for remote i/o")
 	flag.StringVar(&listen, "listen", listen, "`address` to listen, set both -sslcert and -sslkey for HTTPS")
@@ -33,7 +37,9 @@ func main() {
 	flag.StringVar(&keyfile, "sslkey", "", "path to certificate key `file` (PEM)")
 	flag.StringVar(&cache, "cache", cache, "`address` of memcached, if unset, caching is not used")
 	flag.StringVar(&blacklist, "blacklist", blacklist, "path to `file` with url prefixes to blacklist, one per line")
+	flag.StringVar(&privateSubnets, "privateSubnets", privateSubnets, "path to `file` with subnets (CIDR) to block requests to, one per line")
 	flag.BoolVar(&withDimensions, "withDimensions", withDimensions, "return image dimensions in result where possible (extra external request to fetch image)")
+	flag.BoolVar(&globalOnly, "globalOnly", globalOnly, "allow only connections to global unicast IPs")
 	flag.Parse()
 
 	if timeout < 0 {
@@ -45,6 +51,24 @@ func main() {
 		},
 		Log:            log.New(os.Stderr, "", log.LstdFlags),
 		FetchImageSize: withDimensions,
+	}
+	switch {
+	case privateSubnets != "":
+		sn, err := readSubnets(privateSubnets)
+		if err != nil {
+			log.Fatal(err)
+		}
+		tr, err := restrictedTransport(sn, globalOnly)
+		if err != nil {
+			log.Fatal(err)
+		}
+		config.HTTPClient.Transport = tr
+	case privateSubnets == "" && globalOnly:
+		tr, err := restrictedTransport(nil, globalOnly)
+		if err != nil {
+			log.Fatal(err)
+		}
+		config.HTTPClient.Transport = tr
 	}
 	if blacklist != "" {
 		prefixes, err := readBlacklist(blacklist)
@@ -95,4 +119,66 @@ func readBlacklist(blacklist string) ([]string, error) {
 		return nil, err
 	}
 	return prefixes, nil
+}
+
+func readSubnets(name string) ([]*net.IPNet, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var subnets []*net.IPNet
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if b := scanner.Bytes(); len(b) == 0 || b[0] == '#' {
+			continue
+		}
+		_, n, err := net.ParseCIDR(scanner.Text())
+		if err != nil {
+			return nil, err
+		}
+		subnets = append(subnets, n)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return subnets, nil
+}
+
+// restrictedTransport returns http.Transport that blocks attempts to connect to specified
+// private subnets, if globalOnly specified, connections only allowed to IPs for which
+// IsGlobalUnicast() is true.
+func restrictedTransport(privateSubnets []*net.IPNet, globalOnly bool) (http.RoundTripper, error) {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	dialFunc := func(network, address string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, err
+		}
+		ips, err := net.LookupIP(host)
+		if err != nil {
+			return nil, err
+		}
+		for _, ip := range ips {
+			if globalOnly && !ip.IsGlobalUnicast() {
+				return nil, fmt.Errorf("dialing to non-local ip %v is prohibited", ip)
+			}
+			for _, subnet := range privateSubnets {
+				if subnet.Contains(ip) {
+					return nil, fmt.Errorf("dialing to ip %v from subnet %v is prohibited", ip, subnet)
+				}
+			}
+		}
+		return dialer.Dial(network, address)
+	}
+	tr := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		Dial:                  dialFunc,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	return tr, nil
 }
