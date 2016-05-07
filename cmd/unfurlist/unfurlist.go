@@ -174,11 +174,8 @@ func restrictedTransport(privateSubnets []*net.IPNet, globalOnly bool) (http.Rou
 		}
 		return dialer.Dial(network, address)
 	}
-	tr := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		Dial:                  dialFunc,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	return tr, nil
+	var tr http.Transport
+	tr = *(http.DefaultTransport).(*http.Transport)
+	tr.Dial = dialFunc
+	return &tr, nil
 }
