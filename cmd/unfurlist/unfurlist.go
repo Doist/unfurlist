@@ -47,7 +47,8 @@ func main() {
 	}
 	config := unfurlist.Config{
 		HTTPClient: &http.Client{
-			Timeout: timeout,
+			Transport: http.DefaultTransport,
+			Timeout:   timeout,
 		},
 		Log:            log.New(os.Stderr, "", log.LstdFlags),
 		FetchImageSize: withDimensions,
@@ -91,7 +92,7 @@ func main() {
 		// idle connections occupying memory; force periodic close of
 		// them
 		for range time.NewTicker(2 * time.Minute).C {
-			http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+			config.HTTPClient.Transport.(*http.Transport).CloseIdleConnections()
 		}
 	}()
 
