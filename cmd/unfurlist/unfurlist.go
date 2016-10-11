@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Doist/unfurlist"
@@ -47,8 +49,9 @@ func main() {
 	}
 	config := unfurlist.Config{
 		HTTPClient: &http.Client{
-			Transport: http.DefaultTransport,
-			Timeout:   timeout,
+			CheckRedirect: failOnLoginPages,
+			Transport:     http.DefaultTransport,
+			Timeout:       timeout,
 		},
 		Log:            log.New(os.Stderr, "", log.LstdFlags),
 		FetchImageSize: withDimensions,
@@ -179,4 +182,40 @@ func restrictedTransport(privateSubnets []*net.IPNet, globalOnly bool) (http.Rou
 	tr = *(http.DefaultTransport).(*http.Transport)
 	tr.Dial = dialFunc
 	return &tr, nil
+}
+
+// failOnLoginPages can be used as http.Client.CheckRedirect to skip redirects
+// to login pages of most commonly used services or most commonly named login
+// pages. It also checks depth of redirect chain and stops on more then 10
+// consecutive redirects.
+func failOnLoginPages(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if strings.HasPrefix(req.URL.Path, "/login.") {
+		return errWantLogin
+	}
+	u := *req.URL
+	u.RawQuery, u.Fragment = "", ""
+	if _, ok := loginPages[(&u).String()]; ok {
+		return errWantLogin
+	}
+	return nil
+}
+
+var errWantLogin = errors.New("resource requires login")
+
+// loginPages is a set of popular services' known login pages
+var loginPages map[string]struct{}
+
+func init() {
+	pages := []string{
+		"https://accounts.google.com/ServiceLogin",
+		"https://todoist.com/Users/showLogin",
+	}
+	loginPages = make(map[string]struct{}, len(pages))
+	for _, u := range pages {
+		loginPages[u] = struct{}{}
+	}
+
 }
