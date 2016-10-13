@@ -211,6 +211,7 @@ var loginPages map[string]struct{}
 func init() {
 	pages := []string{
 		"https://accounts.google.com/ServiceLogin",
+		"https://bitbucket.org/account/signin/",
 		"https://todoist.com/Users/showLogin",
 	}
 	loginPages = make(map[string]struct{}, len(pages))
