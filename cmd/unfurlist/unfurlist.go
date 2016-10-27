@@ -53,6 +53,7 @@ func main() {
 			Transport:     http.DefaultTransport,
 			Timeout:       timeout,
 		},
+		Headers:        []string{"Accept-Language", "en;q=1, *;q=0.5"},
 		Log:            log.New(os.Stderr, "", log.LstdFlags),
 		FetchImageSize: withDimensions,
 	}

@@ -61,6 +61,11 @@ type Config struct {
 	FetchImageSize   bool
 	BlacklistPrefix  []string // skip unfurling of urls having these prefixes
 
+	// Headers specify key-value pairs of extra headers to add to each
+	// outgoing request made by Handler. Headers length must be even,
+	// otherwise Headers are ignored.
+	Headers []string
+
 	pmap *prefixMap // built from BlacklistPrefix
 }
 
@@ -110,10 +115,12 @@ func New(config *Config) http.Handler {
 		inFlight: make(map[string]chan struct{}),
 	}
 
+	if len(h.Config.Headers)%2 != 0 {
+		h.Config.Headers = nil
+	}
 	if len(h.Config.BlacklistPrefix) > 0 {
 		h.Config.pmap = newPrefixMap(h.Config.BlacklistPrefix)
 	}
-
 	if h.Config.MaxBodyChunkSize == 0 {
 		h.Config.MaxBodyChunkSize = defaultMaxBodyChunkSize
 	}
@@ -295,6 +302,9 @@ func (h *unfurlHandler) fetchHTML(URL string) (head []byte, contentType string, 
 		return nil, "", err
 	}
 	req.Header.Set("User-Agent", userAgent)
+	for i := 0; i < len(h.Config.Headers); i += 2 {
+		req.Header.Set(h.Config.Headers[i], h.Config.Headers[i+1])
+	}
 	response, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
