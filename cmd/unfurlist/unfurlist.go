@@ -192,7 +192,7 @@ func failOnLoginPages(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
-	if strings.HasPrefix(req.URL.Path, "/login.") {
+	if req.URL.Path == "/login" || strings.HasPrefix(req.URL.Path, "/login.") {
 		return errWantLogin
 	}
 	u := *req.URL
