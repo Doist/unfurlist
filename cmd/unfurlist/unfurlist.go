@@ -215,6 +215,7 @@ func init() {
 	pages := []string{
 		"https://bitbucket.org/account/signin/",
 		"https://todoist.com/Users/showLogin",
+		"https://www.evernote.com/notelink/Login.action",
 	}
 	loginPages = make(map[string]struct{}, len(pages))
 	for _, u := range pages {
