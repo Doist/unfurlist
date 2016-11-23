@@ -202,9 +202,8 @@ func failOnLoginPages(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
-	if req.URL.Path == "/login" ||
-		strings.HasPrefix(req.URL.Path, "/login.") ||
-		strings.HasSuffix(req.URL.Path, "/ServiceLogin") {
+	if strings.Contains(strings.ToLower(req.URL.Host), "login") ||
+		strings.Contains(strings.ToLower(req.URL.Path), "login") {
 		return errWantLogin
 	}
 	u := *req.URL
@@ -223,8 +222,6 @@ var loginPages map[string]struct{}
 func init() {
 	pages := []string{
 		"https://bitbucket.org/account/signin/",
-		"https://todoist.com/Users/showLogin",
-		"https://www.evernote.com/notelink/Login.action",
 	}
 	loginPages = make(map[string]struct{}, len(pages))
 	for _, u := range pages {
