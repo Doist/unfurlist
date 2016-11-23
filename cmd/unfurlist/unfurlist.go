@@ -31,8 +31,10 @@ func main() {
 		timeout           = 30 * time.Second
 		withDimensions    bool
 		globalOnly        bool
+		googleMapsKey     string
 	)
 	flag.DurationVar(&timeout, "timeout", timeout, "timeout for remote i/o")
+	flag.StringVar(&googleMapsKey, "googlemapskey", googleMapsKey, "Google Static Maps API key to generate map previews")
 	flag.StringVar(&listen, "listen", listen, "`address` to listen, set both -sslcert and -sslkey for HTTPS")
 	flag.StringVar(&pprofListen, "pprof", pprofListen, "`address` to serve pprof data at (usually localhost)")
 	flag.StringVar(&certfile, "sslcert", "", "path to certificate `file` (PEM)")
@@ -87,7 +89,14 @@ func main() {
 		config.Cache = memcache.New(cache)
 	}
 
-	handler := unfurlist.New(&config)
+	var handler http.Handler
+	switch googleMapsKey {
+	case "":
+		handler = unfurlist.New(&config)
+	default:
+		handler = unfurlist.WithFetchers(unfurlist.New(&config),
+			unfurlist.GoogleMapsFetcher(googleMapsKey))
+	}
 	if pprofListen != "" {
 		go func(addr string) { log.Println(http.ListenAndServe(addr, nil)) }(pprofListen)
 	}

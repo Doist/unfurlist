@@ -43,6 +43,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -75,6 +76,7 @@ const userAgent = "unfurlist (https://github.com/Doist/unfurlist)"
 type unfurlHandler struct {
 	Config *Config
 
+	fetchers []FetchFunc
 	mu       sync.Mutex
 	inFlight map[string]chan struct{} // in-flight urls processed
 }
@@ -100,7 +102,7 @@ func (rs unfurlResults) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
 
 // New returns new initialized unfurl handler. If config is nil, default values
 // would be used.
-func New(config *Config) http.Handler {
+func New(config *Config) *unfurlHandler {
 	var cfg *Config
 	// copy config so that modifications to it won't leak to value provided
 	// by caller
@@ -198,26 +200,26 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
 // If no match is found the result will be an object that just contains the URL
-func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, abort <-chan struct{}) {
+func (h *unfurlHandler) processURL(i int, link string, resp chan<- unfurlResult, abort <-chan struct{}) {
 	waitLogged := false
 	for {
 		// spinlock-like loop to ensure we don't have two in-flight
-		// outgoing requests for the same url
+		// outgoing requests for the same link
 		h.mu.Lock()
-		if ch, ok := h.inFlight[url]; ok {
+		if ch, ok := h.inFlight[link]; ok {
 			h.mu.Unlock()
 			if !waitLogged {
-				h.Config.Log.Printf("Wait for in-flight request to complete %q", url)
+				h.Config.Log.Printf("Wait for in-flight request to complete %q", link)
 				waitLogged = true
 			}
 			<-ch // block until another goroutine processes the same url
 		} else {
 			ch = make(chan struct{})
-			h.inFlight[url] = ch
+			h.inFlight[link] = ch
 			h.mu.Unlock()
 			defer func() {
 				h.mu.Lock()
-				delete(h.inFlight, url)
+				delete(h.inFlight, link)
 				h.mu.Unlock()
 				close(ch)
 			}()
@@ -225,9 +227,9 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		}
 	}
 
-	result := unfurlResult{idx: i, URL: url}
-	if h.Config.pmap != nil && h.Config.pmap.Match(url) { // blacklisted
-		h.Config.Log.Printf("Blacklisted %q", url)
+	result := unfurlResult{idx: i, URL: link}
+	if h.Config.pmap != nil && h.Config.pmap.Match(link) { // blacklisted
+		h.Config.Log.Printf("Blacklisted %q", link)
 		select {
 		case resp <- result:
 		case <-abort:
@@ -236,10 +238,10 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 	}
 
 	if mc := h.Config.Cache; mc != nil {
-		if it, err := mc.Get(mcKey(url)); err == nil {
+		if it, err := mc.Get(mcKey(link)); err == nil {
 			var cached unfurlResult
 			if err = json.Unmarshal(it.Value, &cached); err == nil {
-				h.Config.Log.Printf("Cache hit for %q", url)
+				h.Config.Log.Printf("Cache hit for %q", link)
 				cached.idx = i
 				select {
 				case resp <- cached:
@@ -250,8 +252,26 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		}
 	}
 
+	var matched bool
+	if u, err := url.Parse(result.URL); err == nil {
+		for _, f := range h.fetchers {
+			meta, ok := f(u)
+			if !ok || !meta.Valid() {
+				continue
+			}
+			matched = true
+			result.Title = meta.Title
+			result.Type = meta.Type
+			result.Description = meta.Description
+			result.Image = meta.Image
+			result.ImageWidth = meta.ImageWidth
+			result.ImageHeight = meta.ImageHeight
+			goto hasMatch
+		}
+	}
+
 	// Try oEmbed
-	matched := oembedParseURL(h, &result)
+	matched = oembedParseURL(h, &result)
 
 	if !matched {
 		if htmlBody, ct, err := h.fetchHTML(result.URL); err == nil {
@@ -261,11 +281,12 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 		}
 	}
 
+hasMatch:
 	switch absURL, err := absoluteImageURL(result.URL, result.Image); err {
 	case errEmptyImageURL:
 	case nil:
 		result.Image = absURL
-		if h.Config.FetchImageSize {
+		if h.Config.FetchImageSize && (result.ImageWidth == 0 || result.ImageHeight == 0) {
 			if width, height, err := imageDimensions(result.Image, h.Config.HTTPClient); err != nil {
 				h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
 			} else {
@@ -278,8 +299,8 @@ func (h *unfurlHandler) processURL(i int, url string, resp chan<- unfurlResult, 
 
 	if mc := h.Config.Cache; matched && mc != nil {
 		if cdata, err := json.Marshal(result); err == nil {
-			h.Config.Log.Printf("Cache update for %q", url)
-			mc.Set(&memcache.Item{Key: mcKey(url), Value: cdata})
+			h.Config.Log.Printf("Cache update for %q", link)
+			mc.Set(&memcache.Item{Key: mcKey(link), Value: cdata})
 		}
 	}
 
