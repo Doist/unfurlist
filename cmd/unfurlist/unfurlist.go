@@ -109,10 +109,17 @@ func main() {
 		}
 	}()
 
+	srv := &http.Server{
+		Addr:         listen,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  30 * time.Second,
+		Handler:      handler,
+	}
 	if certfile != "" && keyfile != "" {
-		log.Fatal(http.ListenAndServeTLS(listen, certfile, keyfile, handler))
+		log.Fatal(srv.ListenAndServeTLS(certfile, keyfile))
 	} else {
-		log.Fatal(http.ListenAndServe(listen, handler))
+		log.Fatal(srv.ListenAndServe())
 	}
 }
 
