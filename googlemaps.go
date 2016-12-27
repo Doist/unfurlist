@@ -14,8 +14,12 @@ func GoogleMapsFetcher(key string) FetchFunc {
 		return func(*url.URL) (*Metadata, bool) { return nil, false }
 	}
 	return func(u *url.URL) (*Metadata, bool) {
-		if u == nil || !(strings.HasSuffix(u.Host, ".google.com") &&
-			strings.HasPrefix(u.Path, "/maps")) {
+		if u == nil {
+			return nil, false
+		}
+		if idx := strings.LastIndexByte(u.Host, '.'); idx == -1 ||
+			!(strings.HasSuffix(u.Host[:idx], ".google") &&
+				strings.HasPrefix(u.Path, "/maps")) {
 			return nil, false
 		}
 		if u.Path == "/maps/api/staticmap" {
