@@ -53,15 +53,16 @@ import (
 	"github.com/dyatlov/go-oembed/oembed"
 )
 
-// Config should be used to adjust configuration of unfurl handler
-type Config struct {
+const defaultMaxBodyChunkSize = 1024 * 64 //64KB
+const userAgent = "unfurlist (https://github.com/Doist/unfurlist)"
+
+type unfurlHandler struct {
 	HTTPClient       *http.Client
-	Log              *log.Logger
+	Log              Logger
 	OembedParser     *oembed.Oembed
 	Cache            *memcache.Client
 	MaxBodyChunkSize int64
 	FetchImageSize   bool
-	BlacklistPrefix  []string // skip unfurling of urls having these prefixes
 
 	// Headers specify key-value pairs of extra headers to add to each
 	// outgoing request made by Handler. Headers length must be even,
@@ -69,13 +70,6 @@ type Config struct {
 	Headers []string
 
 	pmap *prefixMap // built from BlacklistPrefix
-}
-
-const defaultMaxBodyChunkSize = 1024 * 64 //64KB
-const userAgent = "unfurlist (https://github.com/Doist/unfurlist)"
-
-type unfurlHandler struct {
-	Config *Config
 
 	fetchers []FetchFunc
 	mu       sync.Mutex
@@ -133,43 +127,34 @@ func (rs unfurlResults) Len() int           { return len(rs) }
 func (rs unfurlResults) Less(i, j int) bool { return rs[i].idx < rs[j].idx }
 func (rs unfurlResults) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
 
-// New returns new initialized unfurl handler. If config is nil, default values
-// would be used.
-func New(config *Config) *unfurlHandler {
-	var cfg *Config
-	// copy config so that modifications to it won't leak to value provided
-	// by caller
-	if config == nil {
-		cfg = new(Config)
-	} else {
-		tmp := *config
-		cfg = &tmp
-	}
+// ConfFunc is used to configure new unfurl handler; such functions should be
+// used as arguments to New function
+type ConfFunc func(*unfurlHandler) *unfurlHandler
+
+// New returns new initialized unfurl handler. If no configuration functions
+// provided, sane defaults would be used.
+func New(conf ...ConfFunc) http.Handler {
 	h := &unfurlHandler{
-		Config:   cfg,
 		inFlight: make(map[string]chan struct{}),
 	}
-
-	if len(h.Config.Headers)%2 != 0 {
-		h.Config.Headers = nil
+	for _, f := range conf {
+		h = f(h)
 	}
-	if len(h.Config.BlacklistPrefix) > 0 {
-		h.Config.pmap = newPrefixMap(h.Config.BlacklistPrefix)
+	if h.HTTPClient == nil {
+		h.HTTPClient = http.DefaultClient
 	}
-	if h.Config.MaxBodyChunkSize == 0 {
-		h.Config.MaxBodyChunkSize = defaultMaxBodyChunkSize
+	if len(h.Headers)%2 != 0 {
+		h.Headers = nil
 	}
-
-	if h.Config.Log == nil {
-		h.Config.Log = log.New(ioutil.Discard, "", 0)
+	if h.MaxBodyChunkSize == 0 {
+		h.MaxBodyChunkSize = defaultMaxBodyChunkSize
 	}
-
-	if h.Config.OembedParser == nil {
-		oe := oembed.NewOembed()
-		oe.ParseProviders(strings.NewReader(providersData))
-		h.Config.OembedParser = oe
+	if h.Log == nil {
+		h.Log = log.New(ioutil.Discard, "", 0)
 	}
-
+	oe := oembed.NewOembed()
+	_ = oe.ParseProviders(strings.NewReader(providersData))
+	h.OembedParser = oe
 	return h
 }
 
@@ -247,7 +232,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		if ch, ok := h.inFlight[link]; ok {
 			h.mu.Unlock()
 			if !waitLogged {
-				h.Config.Log.Printf("Wait for in-flight request to complete %q", link)
+				h.Log.Printf("Wait for in-flight request to complete %q", link)
 				waitLogged = true
 			}
 			select {
@@ -269,16 +254,16 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		}
 	}
 
-	if h.Config.pmap != nil && h.Config.pmap.Match(link) { // blacklisted
-		h.Config.Log.Printf("Blacklisted %q", link)
+	if h.pmap != nil && h.pmap.Match(link) { // blacklisted
+		h.Log.Printf("Blacklisted %q", link)
 		return result
 	}
 
-	if mc := h.Config.Cache; mc != nil {
+	if mc := h.Cache; mc != nil {
 		if it, err := mc.Get(mcKey(link)); err == nil {
 			var cached unfurlResult
 			if err = json.Unmarshal(it.Value, &cached); err == nil {
-				h.Config.Log.Printf("Cache hit for %q", link)
+				h.Log.Printf("Cache hit for %q", link)
 				cached.idx = i
 				return &cached
 			}
@@ -321,20 +306,20 @@ hasMatch:
 	case errEmptyImageURL:
 	case nil:
 		result.Image = absURL
-		if h.Config.FetchImageSize && (result.ImageWidth == 0 || result.ImageHeight == 0) {
-			if width, height, err := imageDimensions(ctx, h.Config.HTTPClient, result.Image); err != nil {
-				h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
+		if h.FetchImageSize && (result.ImageWidth == 0 || result.ImageHeight == 0) {
+			if width, height, err := imageDimensions(ctx, h.HTTPClient, result.Image); err != nil {
+				h.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
 			} else {
 				result.ImageWidth, result.ImageHeight = width, height
 			}
 		}
 	default:
-		h.Config.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
+		h.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
 	}
 
-	if mc := h.Config.Cache; mc != nil && !result.Empty() {
+	if mc := h.Cache; mc != nil && !result.Empty() {
 		if cdata, err := json.Marshal(result); err == nil {
-			h.Config.Log.Printf("Cache update for %q", link)
+			h.Log.Printf("Cache update for %q", link)
 			mc.Set(&memcache.Item{Key: mcKey(link), Value: cdata})
 		}
 	}
@@ -349,9 +334,9 @@ type pageChunk struct {
 }
 
 // fetchData fetches the first chunk of the resource. The chunk size is
-// determined by h.Config.MaxBodyChunkSize.
+// determined by h.MaxBodyChunkSize.
 func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, error) {
-	client := h.Config.HTTPClient
+	client := h.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -360,8 +345,8 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
-	for i := 0; i < len(h.Config.Headers); i += 2 {
-		req.Header.Set(h.Config.Headers[i], h.Config.Headers[i+1])
+	for i := 0; i < len(h.Headers); i += 2 {
+		req.Header.Set(h.Headers[i], h.Headers[i+1])
 	}
 	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
@@ -373,7 +358,7 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, errors.New("bad status: " + resp.Status)
 	}
-	head, err := ioutil.ReadAll(io.LimitReader(resp.Body, h.Config.MaxBodyChunkSize))
+	head, err := ioutil.ReadAll(io.LimitReader(resp.Body, h.MaxBodyChunkSize))
 	if err != nil {
 		return nil, err
 	}

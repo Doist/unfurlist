@@ -4,11 +4,11 @@
 package unfurlist
 
 func oembedParseURL(h *unfurlHandler, u string) *unfurlResult {
-	item := h.Config.OembedParser.FindItem(u)
+	item := h.OembedParser.FindItem(u)
 	if item == nil {
 		return nil
 	}
-	info, err := item.FetchOembed(u, h.Config.HTTPClient)
+	info, err := item.FetchOembed(u, h.HTTPClient)
 	if err != nil || info.Status >= 300 {
 		return nil
 	}

@@ -49,26 +49,21 @@ func main() {
 	if timeout < 0 {
 		timeout = 0
 	}
-	config := unfurlist.Config{
-		HTTPClient: &http.Client{
-			CheckRedirect: failOnLoginPages,
-			Timeout:       timeout,
-			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				DialContext: (&net.Dialer{
-					Timeout:   10 * time.Second,
-					KeepAlive: 30 * time.Second,
-					DualStack: true,
-				}).DialContext,
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			},
+	httpClient := &http.Client{
+		CheckRedirect: failOnLoginPages,
+		Timeout:       timeout,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   10 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
 		},
-		Headers:        []string{"Accept-Language", "en;q=1, *;q=0.5"},
-		Log:            log.New(os.Stderr, "", log.LstdFlags),
-		FetchImageSize: withDimensions,
 	}
 	switch {
 	case privateSubnets != "":
@@ -80,34 +75,39 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		config.HTTPClient.Transport = tr
+		httpClient.Transport = tr
 	case privateSubnets == "" && globalOnly:
 		tr, err := restrictedTransport(nil, globalOnly)
 		if err != nil {
 			log.Fatal(err)
 		}
-		config.HTTPClient.Transport = tr
+		httpClient.Transport = tr
+	}
+	configs := []unfurlist.ConfFunc{
+		unfurlist.WithExtraHeaders(map[string]string{
+			"Accept-Language": "en;q=1, *;q=0.5",
+		}),
+		unfurlist.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
+		unfurlist.WithHTTPClient(httpClient),
+		unfurlist.WithImageDimensions(withDimensions),
 	}
 	if blacklist != "" {
 		prefixes, err := readBlacklist(blacklist)
 		if err != nil {
 			log.Fatal(err)
 		}
-		config.BlacklistPrefix = prefixes
+		configs = append(configs, unfurlist.WithBlacklistPrefixes(prefixes))
 	}
 	if cache != "" {
 		log.Print("Enable cache at ", cache)
-		config.Cache = memcache.New(cache)
+		configs = append(configs, unfurlist.WithMemcache(memcache.New(cache)))
+	}
+	if googleMapsKey != "" {
+		configs = append(configs,
+			unfurlist.WithFetchers(unfurlist.GoogleMapsFetcher(googleMapsKey)))
 	}
 
-	var handler http.Handler
-	switch googleMapsKey {
-	case "":
-		handler = unfurlist.New(&config)
-	default:
-		handler = unfurlist.WithFetchers(unfurlist.New(&config),
-			unfurlist.GoogleMapsFetcher(googleMapsKey))
-	}
+	handler := unfurlist.New(configs...)
 	if pprofListen != "" {
 		go func(addr string) { log.Println(http.ListenAndServe(addr, nil)) }(pprofListen)
 	}
@@ -116,7 +116,7 @@ func main() {
 		// idle connections occupying memory; force periodic close of
 		// them
 		for range time.NewTicker(2 * time.Minute).C {
-			config.HTTPClient.Transport.(*http.Transport).CloseIdleConnections()
+			httpClient.Transport.(*http.Transport).CloseIdleConnections()
 		}
 	}()
 

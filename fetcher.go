@@ -1,9 +1,6 @@
 package unfurlist
 
-import (
-	"net/http"
-	"net/url"
-)
+import "net/url"
 
 // FetchFunc defines custom metadata fetchers that can be attached to unfurl
 // handler
@@ -23,10 +20,4 @@ type Metadata struct {
 // Valid check that at least one of the mandatory attributes is non-empty
 func (m *Metadata) Valid() bool {
 	return m != nil || m.Title != "" || m.Description != "" || m.Image != ""
-}
-
-// WithFetchers attaches custom fetchers to unfurl handler created by New().
-func WithFetchers(h *unfurlHandler, fetchers ...FetchFunc) http.Handler {
-	h.fetchers = fetchers
-	return h
 }

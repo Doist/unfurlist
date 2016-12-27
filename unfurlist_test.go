@@ -100,15 +100,11 @@ func doRequest(url string, t *testing.T) []unfurlResult {
 	pp := newPipePool()
 	defer pp.Close()
 	go http.Serve(pp, http.HandlerFunc(replayHandler))
-	config := Config{
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{
-				Dial:    pp.Dial,
-				DialTLS: pp.Dial,
-			},
-		},
-	}
-	handler := New(&config)
+	handler := New(WithHTTPClient(&http.Client{
+		Transport: &http.Transport{
+			Dial:    pp.Dial,
+			DialTLS: pp.Dial,
+		}}))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", url, nil)
@@ -134,15 +130,12 @@ func TestUnfurlist__singleInFlightRequest(t *testing.T) {
 	pp := newPipePool()
 	defer pp.Close()
 	go http.Serve(pp, http.HandlerFunc(replayHandlerSerial(t)))
-	config := Config{
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{
-				Dial:    pp.Dial,
-				DialTLS: pp.Dial,
-			},
+	handler := New(WithHTTPClient(&http.Client{
+		Transport: &http.Transport{
+			Dial:    pp.Dial,
+			DialTLS: pp.Dial,
 		},
-	}
-	handler := New(&config)
+	}))
 
 	req, err := http.NewRequest("GET", "/?content=https://news.ycombinator.com/", nil)
 	if err != nil {
