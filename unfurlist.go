@@ -69,6 +69,8 @@ type unfurlHandler struct {
 	// otherwise Headers are ignored.
 	Headers []string
 
+	titleBlacklist []string
+
 	pmap *prefixMap // built from BlacklistPrefix
 
 	fetchers []FetchFunc
@@ -296,6 +298,14 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		basicParseHTML,
 	} {
 		if res := f(chunk); res != nil {
+			if h.titleBlacklist != nil && res.Title != "" {
+				lt := strings.ToLower(res.Title)
+				for _, s := range h.titleBlacklist {
+					if strings.Contains(lt, s) {
+						goto hasMatch
+					}
+				}
+			}
 			result.Merge(res)
 			goto hasMatch
 		}

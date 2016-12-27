@@ -2,6 +2,7 @@ package unfurlist
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/bradfitz/gomemcache/memcache"
 )
@@ -50,6 +51,21 @@ func WithBlacklistPrefixes(prefixes []string) ConfFunc {
 	return func(h *unfurlHandler) *unfurlHandler {
 		if pmap != nil {
 			h.pmap = pmap
+		}
+		return h
+	}
+}
+
+// WithBlacklistTitles configures unfurl handler to skip unfurling urls that
+// return pages which title contains one of substrings provided
+func WithBlacklistTitles(substrings []string) ConfFunc {
+	ss := make([]string, len(substrings))
+	for i, s := range substrings {
+		ss[i] = strings.ToLower(s)
+	}
+	return func(h *unfurlHandler) *unfurlHandler {
+		if len(ss) > 0 {
+			h.titleBlacklist = ss
 		}
 		return h
 	}
