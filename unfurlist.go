@@ -343,9 +343,9 @@ hasMatch:
 
 // pageChunk describes first chunk of resource
 type pageChunk struct {
-	data []byte
-	url  *url.URL
-	ct   string
+	data []byte   // first chunk of resource data
+	url  *url.URL // final url resource was fetched from (after all redirects)
+	ct   string   // Content-Type as reported by server
 }
 
 // fetchData fetches the first chunk of the resource. The chunk size is
