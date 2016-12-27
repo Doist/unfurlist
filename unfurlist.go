@@ -35,6 +35,7 @@
 package unfurlist
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
@@ -94,7 +95,39 @@ type unfurlResult struct {
 	idx int
 }
 
-type unfurlResults []unfurlResult
+func (u *unfurlResult) Empty() bool {
+	return u.URL == "" && u.Title == "" && u.Type == "" &&
+		u.Description == "" && u.Image == ""
+}
+
+func (u *unfurlResult) Merge(u2 *unfurlResult) {
+	if u2 == nil {
+		return
+	}
+	if u.URL == "" {
+		u.URL = u2.URL
+	}
+	if u.Title == "" {
+		u.Title = u2.Title
+	}
+	if u.Type == "" {
+		u.Type = u2.Type
+	}
+	if u.Description == "" {
+		u.Description = u2.Description
+	}
+	if u.Image == "" {
+		u.Image = u2.Image
+	}
+	if u.ImageWidth == 0 {
+		u.ImageWidth = u2.ImageWidth
+	}
+	if u.ImageHeight == 0 {
+		u.ImageHeight = u2.ImageHeight
+	}
+}
+
+type unfurlResults []*unfurlResult
 
 func (rs unfurlResults) Len() int           { return len(rs) }
 func (rs unfurlResults) Less(i, j int) bool { return rs[i].idx < rs[j].idx }
@@ -163,17 +196,21 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	urls := parseURLsMax(content, 20)
 
-	jobResults := make(chan unfurlResult, 1)
+	jobResults := make(chan *unfurlResult, 1)
 	results := make(unfurlResults, 0, len(urls))
-	abort := make(chan struct{}) // used to cancel background goroutines
-	defer close(abort)
+	ctx := r.Context()
 
 	for i, r := range urls {
-		go h.processURL(i, r, jobResults, abort)
+		go func(ctx context.Context, i int, link string, jobResults chan *unfurlResult) {
+			select {
+			case jobResults <- h.processURL(ctx, i, link):
+			case <-ctx.Done():
+			}
+		}(ctx, i, r, jobResults)
 	}
 	for i := 0; i < len(urls); i++ {
 		select {
-		case <-r.Cancel:
+		case <-ctx.Done():
 			return
 		case res := <-jobResults:
 			results = append(results, res)
@@ -200,7 +237,8 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
 // If no match is found the result will be an object that just contains the URL
-func (h *unfurlHandler) processURL(i int, link string, resp chan<- unfurlResult, abort <-chan struct{}) {
+func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unfurlResult {
+	result := &unfurlResult{idx: i, URL: link}
 	waitLogged := false
 	for {
 		// spinlock-like loop to ensure we don't have two in-flight
@@ -212,7 +250,11 @@ func (h *unfurlHandler) processURL(i int, link string, resp chan<- unfurlResult,
 				h.Config.Log.Printf("Wait for in-flight request to complete %q", link)
 				waitLogged = true
 			}
-			<-ch // block until another goroutine processes the same url
+			select {
+			case <-ch: // block until another goroutine processes the same url
+			case <-ctx.Done():
+				return result
+			}
 		} else {
 			ch = make(chan struct{})
 			h.inFlight[link] = ch
@@ -227,14 +269,9 @@ func (h *unfurlHandler) processURL(i int, link string, resp chan<- unfurlResult,
 		}
 	}
 
-	result := unfurlResult{idx: i, URL: link}
 	if h.Config.pmap != nil && h.Config.pmap.Match(link) { // blacklisted
 		h.Config.Log.Printf("Blacklisted %q", link)
-		select {
-		case resp <- result:
-		case <-abort:
-		}
-		return
+		return result
 	}
 
 	if mc := h.Config.Cache; mc != nil {
@@ -243,41 +280,39 @@ func (h *unfurlHandler) processURL(i int, link string, resp chan<- unfurlResult,
 			if err = json.Unmarshal(it.Value, &cached); err == nil {
 				h.Config.Log.Printf("Cache hit for %q", link)
 				cached.idx = i
-				select {
-				case resp <- cached:
-				case <-abort:
-				}
-				return
+				return &cached
 			}
 		}
 	}
+	chunk, err := h.fetchData(ctx, result.URL)
+	if err != nil {
+		return result
+	}
+	for _, f := range h.fetchers {
+		meta, ok := f(chunk.url)
+		if !ok || !meta.Valid() {
+			continue
+		}
+		result.Title = meta.Title
+		result.Type = meta.Type
+		result.Description = meta.Description
+		result.Image = meta.Image
+		result.ImageWidth = meta.ImageWidth
+		result.ImageHeight = meta.ImageHeight
+		goto hasMatch
+	}
 
-	var matched bool
-	if u, err := url.Parse(result.URL); err == nil {
-		for _, f := range h.fetchers {
-			meta, ok := f(u)
-			if !ok || !meta.Valid() {
-				continue
-			}
-			matched = true
-			result.Title = meta.Title
-			result.Type = meta.Type
-			result.Description = meta.Description
-			result.Image = meta.Image
-			result.ImageWidth = meta.ImageWidth
-			result.ImageHeight = meta.ImageHeight
+	if res := oembedParseURL(h, chunk.url.String()); res != nil {
+		result.Merge(res)
+		goto hasMatch
+	}
+	for _, f := range []func(*pageChunk) *unfurlResult{
+		openGraphParseHTML,
+		basicParseHTML,
+	} {
+		if res := f(chunk); res != nil {
+			result.Merge(res)
 			goto hasMatch
-		}
-	}
-
-	// Try oEmbed
-	matched = oembedParseURL(h, &result)
-
-	if !matched {
-		if htmlBody, ct, err := h.fetchHTML(result.URL); err == nil {
-			if matched = openGraphParseHTML(h, &result, htmlBody, ct); !matched {
-				matched = basicParseHTML(h, &result, htmlBody, ct)
-			}
 		}
 	}
 
@@ -287,7 +322,7 @@ hasMatch:
 	case nil:
 		result.Image = absURL
 		if h.Config.FetchImageSize && (result.ImageWidth == 0 || result.ImageHeight == 0) {
-			if width, height, err := imageDimensions(result.Image, h.Config.HTTPClient); err != nil {
+			if width, height, err := imageDimensions(ctx, h.Config.HTTPClient, result.Image); err != nil {
 				h.Config.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
 			} else {
 				result.ImageWidth, result.ImageHeight = width, height
@@ -297,49 +332,56 @@ hasMatch:
 		h.Config.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
 	}
 
-	if mc := h.Config.Cache; matched && mc != nil {
+	if mc := h.Config.Cache; mc != nil && !result.Empty() {
 		if cdata, err := json.Marshal(result); err == nil {
 			h.Config.Log.Printf("Cache update for %q", link)
 			mc.Set(&memcache.Item{Key: mcKey(link), Value: cdata})
 		}
 	}
-
-	select {
-	case resp <- result:
-	case <-abort:
-	}
+	return result
 }
 
-// fetchHTML fetches the primary chunk of the document
-// it does not care if the URL isn't HTML format
-// the chunk size is determined by h.Config.MaxBodyChunkSize
-func (h *unfurlHandler) fetchHTML(URL string) (head []byte, contentType string, err error) {
+// pageChunk describes first chunk of resource
+type pageChunk struct {
+	data []byte
+	url  *url.URL
+	ct   string
+}
+
+// fetchData fetches the first chunk of the resource. The chunk size is
+// determined by h.Config.MaxBodyChunkSize.
+func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, error) {
 	client := h.Config.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
 	}
 	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 	for i := 0; i < len(h.Config.Headers); i += 2 {
 		req.Header.Set(h.Config.Headers[i], h.Config.Headers[i+1])
 	}
-	response, err := client.Do(req)
+	req = req.WithContext(ctx)
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	defer response.Body.Close()
+	defer resp.Body.Close()
 
-	if response.StatusCode >= http.StatusBadRequest {
-		return nil, "", errors.New("bad status: " + response.Status)
+	if resp.StatusCode >= http.StatusBadRequest {
+		return nil, errors.New("bad status: " + resp.Status)
 	}
-
-	firstChunk := io.LimitReader(response.Body, h.Config.MaxBodyChunkSize)
-
-	head, err = ioutil.ReadAll(firstChunk)
-	return head, response.Header.Get("Content-Type"), err
+	head, err := ioutil.ReadAll(io.LimitReader(resp.Body, h.Config.MaxBodyChunkSize))
+	if err != nil {
+		return nil, err
+	}
+	return &pageChunk{
+		data: head,
+		url:  resp.Request.URL,
+		ct:   resp.Header.Get("Content-Type"),
+	}, nil
 }
 
 // mcKey returns string of hex representation of sha1 sum of string provided.

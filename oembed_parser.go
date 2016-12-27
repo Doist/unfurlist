@@ -3,19 +3,19 @@
 
 package unfurlist
 
-func oembedParseURL(h *unfurlHandler, result *unfurlResult) bool {
-	item := h.Config.OembedParser.FindItem(result.URL)
+func oembedParseURL(h *unfurlHandler, u string) *unfurlResult {
+	item := h.Config.OembedParser.FindItem(u)
 	if item == nil {
-		return false
+		return nil
 	}
-	info, err := item.FetchOembed(result.URL, h.Config.HTTPClient)
+	info, err := item.FetchOembed(u, h.Config.HTTPClient)
 	if err != nil || info.Status >= 300 {
-		return false
+		return nil
 	}
-	result.Title = info.Title
-	result.Type = info.Type
-	result.Description = info.Description
-	result.Image = info.ThumbnailURL
-
-	return true
+	return &unfurlResult{
+		Title:       info.Title,
+		Type:        info.Type,
+		Description: info.Description,
+		Image:       info.ThumbnailURL,
+	}
 }

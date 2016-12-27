@@ -1,6 +1,7 @@
 package unfurlist
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -41,7 +42,7 @@ func absoluteImageURL(originURL, imageURL string) (string, error) {
 
 // imageDimensions tries to retrieve enough of image to get its dimensions. If
 // provided client is nil, http.DefaultClient is used.
-func imageDimensions(imageURL string, client *http.Client) (width, height int, err error) {
+func imageDimensions(ctx context.Context, client *http.Client, imageURL string) (width, height int, err error) {
 	cl := client
 	if cl == nil {
 		cl = http.DefaultClient
@@ -51,6 +52,7 @@ func imageDimensions(imageURL string, client *http.Client) (width, height int, e
 		return 0, 0, err
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req = req.WithContext(ctx)
 	resp, err := cl.Do(req)
 	if err != nil {
 		return 0, 0, err

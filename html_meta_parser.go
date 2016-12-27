@@ -15,24 +15,25 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
-func basicParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
-	result.Type = http.DetectContentType(htmlBody)
+func basicParseHTML(chunk *pageChunk) *unfurlResult {
+	result := new(unfurlResult)
+	result.Type = http.DetectContentType(chunk.data)
 	switch {
 	case strings.HasPrefix(result.Type, "image/"):
 		result.Type = "image"
-		result.Image = result.URL
+		result.Image = chunk.url.String()
 	case strings.HasPrefix(result.Type, "text/"):
 		result.Type = "website"
 		// pass Content-Type from response headers as it may have
 		// charset definition like "text/html; charset=windows-1251"
-		if title, desc, err := extractData(htmlBody, ct); err == nil {
+		if title, desc, err := extractData(chunk.data, chunk.ct); err == nil {
 			result.Title = title
 			result.Description = desc
 		}
 	case strings.HasPrefix(result.Type, "video/"):
 		result.Type = "video"
 	}
-	return true
+	return result
 }
 
 func extractData(htmlBody []byte, ct string) (title, description string, err error) {

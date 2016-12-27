@@ -13,9 +13,9 @@ import (
 	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
-func openGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte, ct string) bool {
-	if !strings.HasPrefix(http.DetectContentType(htmlBody), "text/html") {
-		return false
+func openGraphParseHTML(chunk *pageChunk) *unfurlResult {
+	if !strings.HasPrefix(http.DetectContentType(chunk.data), "text/html") {
+		return nil
 	}
 	// use explicit content type received from headers here but not the one returned by
 	// http.DetectContentType because this function scans only first 512
@@ -23,30 +23,26 @@ func openGraphParseHTML(h *unfurlHandler, result *unfurlResult, htmlBody []byte,
 	// bodies having characters outside utf8 range later; use
 	// charset.NewReader that relies on charset.DetermineEncoding which
 	// implements more elaborate encoding detection specific to html content
-	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), ct)
+	bodyReader, err := charset.NewReader(bytes.NewReader(chunk.data), chunk.ct)
 	if err != nil {
-		return false
+		return nil
 	}
 	og := opengraph.NewOpenGraph()
 	err = og.ProcessHTML(bodyReader)
 	if err != nil || og.Title == "" {
-		return false
+		return nil
 	}
-
-	result.Title = og.Title
-	result.Description = og.Description
-	result.Type = og.Type
+	res := &unfurlResult{
+		Type:        og.Type,
+		Title:       og.Title,
+		Description: og.Description,
+	}
 	if len(og.Images) > 0 {
-		result.Image = og.Images[0].URL
+		res.Image = og.Images[0].URL
 	}
-
-	//--- Do special optimizations for popular services
-	url := strings.ToLower(result.URL)
-
-	// Twitter
-	if strings.Contains(url, "twitter.com") && strings.Contains(url, "/status/") {
-		result.Title, result.Description = result.Description, result.Title
+	if u := strings.ToLower(chunk.url.String()); strings.Contains(u, "twitter.com") &&
+		strings.Contains(u, "/status/") {
+		res.Title, res.Description = res.Description, res.Title
 	}
-
-	return true
+	return res
 }
