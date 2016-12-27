@@ -90,6 +90,7 @@ func main() {
 		unfurlist.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
 		unfurlist.WithHTTPClient(httpClient),
 		unfurlist.WithImageDimensions(withDimensions),
+		unfurlist.WithBlacklistTitles(titleBlacklist),
 	}
 	if blacklist != "" {
 		prefixes, err := readBlacklist(blacklist)
@@ -246,4 +247,8 @@ func init() {
 		loginPages[u] = struct{}{}
 	}
 
+}
+
+var titleBlacklist = []string{
+	"robot check", // Amazon
 }
