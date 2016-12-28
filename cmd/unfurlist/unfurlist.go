@@ -12,7 +12,9 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -34,6 +36,7 @@ func main() {
 		GlobalOnly     bool          `flag:"globalOnly,allow only connections to global unicast IPs"`
 		Timeout        time.Duration `flag:"timeout,timeout for remote i/o"`
 		GoogleMapsKey  string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
+		VideoDomains   string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
 	}{
 		Listen:  "localhost:8080",
 		Pprof:   "localhost:6060",
@@ -99,9 +102,15 @@ func main() {
 		log.Print("Enable cache at ", args.Cache)
 		configs = append(configs, unfurlist.WithMemcache(memcache.New(args.Cache)))
 	}
+	var ff []unfurlist.FetchFunc
 	if args.GoogleMapsKey != "" {
-		configs = append(configs,
-			unfurlist.WithFetchers(unfurlist.GoogleMapsFetcher(args.GoogleMapsKey)))
+		ff = append(ff, unfurlist.GoogleMapsFetcher(args.GoogleMapsKey))
+	}
+	if args.VideoDomains != "" {
+		ff = append(ff, videoThumbnailsFetcher(strings.Split(args.VideoDomains, ",")...))
+	}
+	if ff != nil {
+		configs = append(configs, unfurlist.WithFetchers(ff...))
 	}
 
 	handler := unfurlist.New(configs...)
@@ -247,4 +256,33 @@ func init() {
 
 var titleBlacklist = []string{
 	"robot check", // Amazon
+}
+
+// videoThumbnailsFetcher return unfurlist.FetchFunc that returns metadata
+// with url to video thumbnail file for supported domains.
+func videoThumbnailsFetcher(domains ...string) func(*url.URL) (*unfurlist.Metadata, bool) {
+	doms := make(map[string]struct{})
+	for _, d := range domains {
+		doms[d] = struct{}{}
+	}
+	return func(u *url.URL) (*unfurlist.Metadata, bool) {
+		if _, ok := doms[u.Host]; !ok {
+			return nil, false
+		}
+		switch strings.ToLower(path.Ext(u.Path)) {
+		default:
+			return nil, false
+		case ".mp4", ".mov", ".m4v", ".3gp", ".webm", ".mkv":
+		}
+		u2 := &url.URL{
+			Scheme: u.Scheme,
+			Host:   u.Host,
+			Path:   u.Path + ".thumb",
+		}
+		return &unfurlist.Metadata{
+			Title: path.Base(u.Path),
+			Type:  "video",
+			Image: u2.String(),
+		}, true
+	}
 }
