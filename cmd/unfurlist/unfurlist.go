@@ -17,41 +17,37 @@ import (
 	"time"
 
 	"github.com/Doist/unfurlist"
+	"github.com/artyom/autoflags"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
 func main() {
-	var (
-		listen            = "127.0.0.1:8080"
-		pprofListen       = "127.0.0.1:6060"
-		cache             = ""
-		certfile, keyfile string
-		blacklist         string
-		privateSubnets    string
-		timeout           = 30 * time.Second
-		withDimensions    bool
-		globalOnly        bool
-		googleMapsKey     string
-	)
-	flag.DurationVar(&timeout, "timeout", timeout, "timeout for remote i/o")
-	flag.StringVar(&googleMapsKey, "googlemapskey", googleMapsKey, "Google Static Maps API key to generate map previews")
-	flag.StringVar(&listen, "listen", listen, "`address` to listen, set both -sslcert and -sslkey for HTTPS")
-	flag.StringVar(&pprofListen, "pprof", pprofListen, "`address` to serve pprof data at (usually localhost)")
-	flag.StringVar(&certfile, "sslcert", "", "path to certificate `file` (PEM)")
-	flag.StringVar(&keyfile, "sslkey", "", "path to certificate key `file` (PEM)")
-	flag.StringVar(&cache, "cache", cache, "`address` of memcached, if unset, caching is not used")
-	flag.StringVar(&blacklist, "blacklist", blacklist, "path to `file` with url prefixes to blacklist, one per line")
-	flag.StringVar(&privateSubnets, "privateSubnets", privateSubnets, "path to `file` with subnets (CIDR) to block requests to, one per line")
-	flag.BoolVar(&withDimensions, "withDimensions", withDimensions, "return image dimensions in result where possible (extra external request to fetch image)")
-	flag.BoolVar(&globalOnly, "globalOnly", globalOnly, "allow only connections to global unicast IPs")
+	args := struct {
+		Listen         string        `flag:"listen,address to listen, set both -sslcert and -sslkey for HTTPS"`
+		Pprof          string        `flag:"pprof,address to serve pprof data"`
+		Cert           string        `flag:"sslcert,path to certificate file (PEM format)"`
+		Key            string        `flag:"sslkey,path to certificate file (PEM format)"`
+		Cache          string        `flag:"cache,address of memcached, disabled if empty"`
+		Blacklist      string        `flag:"blacklist,file with url prefixes to blacklist, one per line"`
+		PrivateSubnets string        `flag:"privateSubnets,file with subnets in CIDR notation to block requests to, one per line"`
+		WithDimensions bool          `flag:"withDimensions,return image dimensions if possible (extra request to fetch image)"`
+		GlobalOnly     bool          `flag:"globalOnly,allow only connections to global unicast IPs"`
+		Timeout        time.Duration `flag:"timeout,timeout for remote i/o"`
+		GoogleMapsKey  string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
+	}{
+		Listen:  "localhost:8080",
+		Pprof:   "localhost:6060",
+		Timeout: 30 * time.Second,
+	}
+	autoflags.Define(&args)
 	flag.Parse()
 
-	if timeout < 0 {
-		timeout = 0
+	if args.Timeout < 0 {
+		args.Timeout = 0
 	}
 	httpClient := &http.Client{
 		CheckRedirect: failOnLoginPages,
-		Timeout:       timeout,
+		Timeout:       args.Timeout,
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -66,18 +62,18 @@ func main() {
 		},
 	}
 	switch {
-	case privateSubnets != "":
-		sn, err := readSubnets(privateSubnets)
+	case args.PrivateSubnets != "":
+		sn, err := readSubnets(args.PrivateSubnets)
 		if err != nil {
 			log.Fatal(err)
 		}
-		tr, err := restrictedTransport(sn, globalOnly)
+		tr, err := restrictedTransport(sn, args.GlobalOnly)
 		if err != nil {
 			log.Fatal(err)
 		}
 		httpClient.Transport = tr
-	case privateSubnets == "" && globalOnly:
-		tr, err := restrictedTransport(nil, globalOnly)
+	case args.PrivateSubnets == "" && args.GlobalOnly:
+		tr, err := restrictedTransport(nil, args.GlobalOnly)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -89,28 +85,28 @@ func main() {
 		}),
 		unfurlist.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
 		unfurlist.WithHTTPClient(httpClient),
-		unfurlist.WithImageDimensions(withDimensions),
+		unfurlist.WithImageDimensions(args.WithDimensions),
 		unfurlist.WithBlacklistTitles(titleBlacklist),
 	}
-	if blacklist != "" {
-		prefixes, err := readBlacklist(blacklist)
+	if args.Blacklist != "" {
+		prefixes, err := readBlacklist(args.Blacklist)
 		if err != nil {
 			log.Fatal(err)
 		}
 		configs = append(configs, unfurlist.WithBlacklistPrefixes(prefixes))
 	}
-	if cache != "" {
-		log.Print("Enable cache at ", cache)
-		configs = append(configs, unfurlist.WithMemcache(memcache.New(cache)))
+	if args.Cache != "" {
+		log.Print("Enable cache at ", args.Cache)
+		configs = append(configs, unfurlist.WithMemcache(memcache.New(args.Cache)))
 	}
-	if googleMapsKey != "" {
+	if args.GoogleMapsKey != "" {
 		configs = append(configs,
-			unfurlist.WithFetchers(unfurlist.GoogleMapsFetcher(googleMapsKey)))
+			unfurlist.WithFetchers(unfurlist.GoogleMapsFetcher(args.GoogleMapsKey)))
 	}
 
 	handler := unfurlist.New(configs...)
-	if pprofListen != "" {
-		go func(addr string) { log.Println(http.ListenAndServe(addr, nil)) }(pprofListen)
+	if args.Pprof != "" {
+		go func(addr string) { log.Println(http.ListenAndServe(addr, nil)) }(args.Pprof)
 	}
 	go func() {
 		// on a highly used system unfurlist can accumulate a lot of
@@ -122,14 +118,14 @@ func main() {
 	}()
 
 	srv := &http.Server{
-		Addr:         listen,
+		Addr:         args.Listen,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  30 * time.Second,
 		Handler:      handler,
 	}
-	if certfile != "" && keyfile != "" {
-		log.Fatal(srv.ListenAndServeTLS(certfile, keyfile))
+	if args.Cert != "" && args.Key != "" {
+		log.Fatal(srv.ListenAndServeTLS(args.Cert, args.Key))
 	} else {
 		log.Fatal(srv.ListenAndServe())
 	}
