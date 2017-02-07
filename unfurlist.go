@@ -325,6 +325,7 @@ hasMatch:
 		}
 	default:
 		h.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
+		result.Image, result.ImageWidth, result.ImageHeight = "", 0, 0
 	}
 
 	if mc := h.Cache; mc != nil && !result.Empty() {
