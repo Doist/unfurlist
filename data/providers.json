@@ -1661,6 +1661,13 @@
         ]
     },
     {
+	"provider_name": "Cloudup",
+	"provider_url": "https://cloudup.com/",
+	"endpoints": [
+		{"url": "https://cloudup.com/oembed", "discovery": true}
+	]
+    },
+    {
         "provider_name": "YouTube",
         "provider_url": "http:\/\/www.youtube.com\/",
         "endpoints": [
