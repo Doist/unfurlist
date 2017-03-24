@@ -35,6 +35,7 @@
 package unfurlist
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/json"
@@ -94,6 +95,11 @@ type unfurlResult struct {
 func (u *unfurlResult) Empty() bool {
 	return u.URL == "" && u.Title == "" && u.Type == "" &&
 		u.Description == "" && u.Image == ""
+}
+
+func (u *unfurlResult) normalize() {
+	b := bytes.Join(bytes.Fields([]byte(u.Title)), []byte{' '})
+	u.Title = string(b)
 }
 
 func (u *unfurlResult) Merge(u2 *unfurlResult) {
@@ -205,6 +211,9 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Sort(results)
+	for _, r := range results {
+		r.normalize()
+	}
 
 	if callback != "" {
 		w.Header().Set("Content-Type", "application/x-javascript")

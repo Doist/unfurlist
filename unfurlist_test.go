@@ -18,7 +18,7 @@ func TestOpenGraph(t *testing.T) {
 		t.Fatalf("invalid result length: %v", result)
 	}
 
-	want := "Robots To Eat All The Jobs? Hackers, Policy Wonks Collaborate On A Basic Income Createathon This\u00a0Weekend"
+	want := "Robots To Eat All The Jobs? Hackers, Policy Wonks Collaborate On A Basic Income Createathon This Weekend"
 	if result[0].Title != want {
 		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
 	}
