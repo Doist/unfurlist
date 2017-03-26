@@ -302,6 +302,10 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		result.Merge(res)
 		goto hasMatch
 	}
+	if res, err := oembedDiscoverable(ctx, h.HTTPClient, chunk); err == nil && res != nil {
+		result.Merge(res)
+		goto hasMatch
+	}
 	for _, f := range []func(*pageChunk) *unfurlResult{
 		openGraphParseHTML,
 		basicParseHTML,
