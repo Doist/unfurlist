@@ -89,7 +89,7 @@ tokenize:
 				return "", errNoMetadataFound
 			}
 			return "", z.Err()
-		case html.StartTagToken:
+		case html.StartTagToken, html.SelfClosingTagToken:
 			name, hasAttr := z.TagName()
 			switch atom.Lookup(name) {
 			case atom.Body:
