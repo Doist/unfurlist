@@ -50,8 +50,10 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/html/charset"
+
+	"github.com/artyom/oembed"
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/dyatlov/go-oembed/oembed"
 )
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
@@ -60,7 +62,7 @@ const userAgent = "unfurlist (https://github.com/Doist/unfurlist)"
 type unfurlHandler struct {
 	HTTPClient       *http.Client
 	Log              Logger
-	OembedParser     *oembed.Oembed
+	oembedLookupFunc oembed.LookupFunc
 	Cache            *memcache.Client
 	MaxBodyChunkSize int64
 	FetchImageSize   bool
@@ -160,9 +162,11 @@ func New(conf ...ConfFunc) http.Handler {
 	if h.Log == nil {
 		h.Log = log.New(ioutil.Discard, "", 0)
 	}
-	oe := oembed.NewOembed()
-	_ = oe.ParseProviders(strings.NewReader(providersData))
-	h.OembedParser = oe
+	fn, err := oembed.Providers(strings.NewReader(providersData))
+	if err != nil {
+		panic(err)
+	}
+	h.oembedLookupFunc = fn
 	return h
 }
 
@@ -298,14 +302,13 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		goto hasMatch
 	}
 
-	if res := oembedParseURL(h, chunk.url.String()); res != nil {
-		result.Merge(res)
-		goto hasMatch
+	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
+		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
+			result.Merge(res)
+			goto hasMatch
+		}
 	}
-	if res, err := oembedDiscoverable(ctx, h.HTTPClient, chunk); err == nil && res != nil {
-		result.Merge(res)
-		goto hasMatch
-	}
+
 	for _, f := range []func(*pageChunk) *unfurlResult{
 		openGraphParseHTML,
 		basicParseHTML,
@@ -357,9 +360,24 @@ type pageChunk struct {
 	ct   string   // Content-Type as reported by server
 }
 
-// fetchData fetches the first chunk of the resource. The chunk size is
-// determined by h.MaxBodyChunkSize.
-func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, error) {
+func (p *pageChunk) oembedEndpoint(fn oembed.LookupFunc) (url string, found bool) {
+	if p == nil || fn == nil {
+		return "", false
+	}
+	if u, ok := fn(p.url.String()); ok {
+		return u, true
+	}
+	r, err := charset.NewReader(bytes.NewReader(p.data), p.ct)
+	if err != nil {
+		return "", false
+	}
+	if u, ok, err := oembed.Discover(r); err == nil && ok {
+		return u, true
+	}
+	return "", false
+}
+
+func (h *unfurlHandler) httpGet(ctx context.Context, URL string) (*http.Response, error) {
 	client := h.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
@@ -373,7 +391,13 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 		req.Header.Set(h.Headers[i], h.Headers[i+1])
 	}
 	req = req.WithContext(ctx)
-	resp, err := client.Do(req)
+	return client.Do(req)
+}
+
+// fetchData fetches the first chunk of the resource. The chunk size is
+// determined by h.MaxBodyChunkSize.
+func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, error) {
+	resp, err := h.httpGet(ctx, URL)
 	if err != nil {
 		return nil, err
 	}
