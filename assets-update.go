@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -16,7 +17,16 @@ func main() {
 }
 
 func wrapFile(in, out string) error {
-	data, err := ioutil.ReadFile(in)
+	input, err := os.Open(in)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	var m json.RawMessage
+	if err := json.NewDecoder(input).Decode(&m); err != nil {
+		return err
+	}
+	data, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
