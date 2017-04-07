@@ -302,28 +302,21 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		goto hasMatch
 	}
 
+	if res := openGraphParseHTML(chunk); res != nil {
+		if !blacklisted(h.titleBlacklist, res.Title) {
+			result.Merge(res)
+			goto hasMatch
+		}
+	}
 	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
 		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
 	}
-
-	for _, f := range []func(*pageChunk) *unfurlResult{
-		openGraphParseHTML,
-		basicParseHTML,
-	} {
-		if res := f(chunk); res != nil {
-			if h.titleBlacklist != nil && res.Title != "" {
-				lt := strings.ToLower(res.Title)
-				for _, s := range h.titleBlacklist {
-					if strings.Contains(lt, s) {
-						goto hasMatch
-					}
-				}
-			}
+	if res := basicParseHTML(chunk); res != nil {
+		if !blacklisted(h.titleBlacklist, res.Title) {
 			result.Merge(res)
-			goto hasMatch
 		}
 	}
 
@@ -423,6 +416,19 @@ func mcKey(s string) string {
 	h := sha1.New()
 	io.WriteString(h, s)
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func blacklisted(blacklist []string, title string) bool {
+	if title == "" || len(blacklist) == 0 {
+		return false
+	}
+	lt := strings.ToLower(title)
+	for _, s := range blacklist {
+		if strings.Contains(lt, s) {
+			return true
+		}
+	}
+	return false
 }
 
 //go:generate go run assets-update.go
