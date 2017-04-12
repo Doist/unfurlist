@@ -36,8 +36,8 @@ func TestOpenGraphTwitter(t *testing.T) {
 	}
 
 	want := "Help a family out of hunger and poverty"
-	if !strings.Contains(result[0].Title, want) {
-		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
+	if !strings.Contains(result[0].Description, want) {
+		t.Errorf("unexpected Description, want %q, got %q", want, result[0].Description)
 	}
 }
 

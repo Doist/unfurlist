@@ -40,9 +40,10 @@ func openGraphParseHTML(chunk *pageChunk) *unfurlResult {
 	if len(og.Images) > 0 {
 		res.Image = og.Images[0].URL
 	}
-	if u := strings.ToLower(chunk.url.String()); strings.Contains(u, "twitter.com") &&
-		strings.Contains(u, "/status/") {
-		res.Title, res.Description = res.Description, res.Title
+	if chunk.url.Host == "twitter.com" &&
+		strings.Contains(chunk.url.Path, "/status/") &&
+		!bytes.Contains(chunk.data, []byte(`property="og:image:user_generated" content="true"`)) {
+		res.Image = ""
 	}
 	return res
 }
