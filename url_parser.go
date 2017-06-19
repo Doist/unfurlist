@@ -19,7 +19,7 @@ var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+
 func ParseURLs(content string) []string { return parseURLsMax(content, -1) }
 
 func parseURLsMax(content string, maxItems int) []string {
-	const punct = `[]()<>{},;.`
+	const punct = `[]()<>{},;.*_`
 	res := reUrls.FindAllString(content, maxItems)
 	for i, s := range res {
 		// remove all combinations of trailing >)],. characters only if
