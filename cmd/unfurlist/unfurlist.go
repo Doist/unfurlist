@@ -20,6 +20,7 @@ import (
 
 	"github.com/Doist/unfurlist"
 	"github.com/artyom/autoflags"
+	"github.com/artyom/useragent"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
@@ -51,7 +52,7 @@ func main() {
 	httpClient := &http.Client{
 		CheckRedirect: failOnLoginPages,
 		Timeout:       args.Timeout,
-		Transport: &http.Transport{
+		Transport: useragent.Set(&http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
 				Timeout:   10 * time.Second,
@@ -62,7 +63,7 @@ func main() {
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-		},
+		}, "unfurlist (https://github.com/Doist/unfurlist)"),
 	}
 	switch {
 	case args.PrivateSubnets != "":

@@ -51,7 +51,6 @@ func imageDimensions(ctx context.Context, client *http.Client, imageURL string) 
 	if err != nil {
 		return 0, 0, err
 	}
-	req.Header.Set("User-Agent", userAgent)
 	req = req.WithContext(ctx)
 	resp, err := cl.Do(req)
 	if err != nil {

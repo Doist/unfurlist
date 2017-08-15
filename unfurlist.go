@@ -58,7 +58,6 @@ import (
 )
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
-const userAgent = "unfurlist (https://github.com/Doist/unfurlist)"
 
 type unfurlHandler struct {
 	HTTPClient       *http.Client
@@ -384,7 +383,6 @@ func (h *unfurlHandler) httpGet(ctx context.Context, URL string) (*http.Response
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
 	for i := 0; i < len(h.Headers); i += 2 {
 		req.Header.Set(h.Headers[i], h.Headers[i+1])
 	}

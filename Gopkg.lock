@@ -14,6 +14,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/artyom/useragent"
+  packages = ["."]
+  revision = "82822136b3218b879ed893af39ba62879bb43c88"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/bradfitz/gomemcache"
   packages = ["memcache"]
@@ -46,6 +52,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "53c65c998474ee0fe47cdc18fb98169b7d23bc971b956ca14dcf665ad0327807"
+  inputs-digest = "8534c47299079300f29a73e978d6c6808ad9e43e38c024036ec6c36b371083e9"
   solver-name = "gps-cdcl"
   solver-version = 1
