@@ -18,7 +18,10 @@ limitations under the License.
 package memcache
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -102,6 +105,32 @@ func testWithClient(t *testing.T, c *Client) {
 	}
 	if it.Flags != 123 {
 		t.Errorf("get(foo) Flags = %v, want 123", it.Flags)
+	}
+
+	// Get and set a unicode key
+	quxKey := "Hello_世界"
+	qux := &Item{Key: quxKey, Value: []byte("hello world")}
+	err = c.Set(qux)
+	checkErr(err, "first set(Hello_世界): %v", err)
+	it, err = c.Get(quxKey)
+	checkErr(err, "get(Hello_世界): %v", err)
+	if it.Key != quxKey {
+		t.Errorf("get(Hello_世界) Key = %q, want Hello_世界", it.Key)
+	}
+	if string(it.Value) != "hello world" {
+		t.Errorf("get(Hello_世界) Value = %q, want hello world", string(it.Value))
+	}
+
+	// Set malformed keys
+	malFormed := &Item{Key: "foo bar", Value: []byte("foobarval")}
+	err = c.Set(malFormed)
+	if err != ErrMalformedKey {
+		t.Errorf("set(foo bar) should return ErrMalformedKey instead of %v", err)
+	}
+	malFormed = &Item{Key: "foo" + string(0x7f), Value: []byte("foobarval")}
+	err = c.Set(malFormed)
+	if err != ErrMalformedKey {
+		t.Errorf("set(foo<0x7f>) should return ErrMalformedKey instead of %v", err)
 	}
 
 	// Add
@@ -226,5 +255,35 @@ func testTouchWithClient(t *testing.T, c *Client) {
 		if err != ErrCacheMiss {
 			t.Fatalf("unexpected error retrieving bar: %v", err.Error())
 		}
+	}
+}
+
+func BenchmarkOnItem(b *testing.B) {
+	fakeServer, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		b.Fatal("Could not open fake server: ", err)
+	}
+	defer fakeServer.Close()
+	go func() {
+		for {
+			if c, err := fakeServer.Accept(); err == nil {
+				go func() { io.Copy(ioutil.Discard, c) }()
+			} else {
+				return
+			}
+		}
+	}()
+
+	addr := fakeServer.Addr()
+	c := New(addr.String())
+	if _, err := c.getConn(addr); err != nil {
+		b.Fatal("failed to initialize connection to fake server")
+	}
+
+	item := Item{Key: "foo"}
+	dummyFn := func(_ *Client, _ *bufio.ReadWriter, _ *Item) error { return nil }
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.onItem(&item, dummyFn)
 	}
 }

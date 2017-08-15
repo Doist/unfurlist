@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<oembed>	<version>1.0</version>
+	<type>rich</type>
+	<width>550</width>
+	<height>440</height>
+	<title>Soil formation</title>
+	<author_name>eduMedia</author_name>
+	<author_url>http://www.edumedia-sciences.com/en/</author_url>
+	<provider_name>eduMedia</provider_name>
+	<provider_url>http://www.edumedia-sciences.com/en/</provider_url>
+	<thumbnail_url>http://www.edumedia-sciences.com/media/thumbnail/531</thumbnail_url>
+	<thumbnail_width>100</thumbnail_width>
+	<thumbnail_height>100</thumbnail_height>
+	<html>&lt;iframe width=550 height=440 src=&quot;https://www.edumedia-sciences.com/en/media/frame/531/&quot; frameborder=0&gt;&lt;/iframe&gt;</html>
+</oembed>
