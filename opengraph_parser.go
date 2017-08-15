@@ -36,6 +36,7 @@ func openGraphParseHTML(chunk *pageChunk) *unfurlResult {
 		Type:        og.Type,
 		Title:       og.Title,
 		Description: og.Description,
+		SiteName:    og.SiteName,
 	}
 	if len(og.Images) > 0 {
 		res.Image = og.Images[0].URL

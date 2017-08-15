@@ -18,8 +18,9 @@ func fetchOembed(ctx context.Context, url string, fn func(context.Context, strin
 		return nil, err
 	}
 	return &unfurlResult{
-		Title: meta.Title,
-		Type:  string(meta.Type),
-		Image: meta.Thumbnail,
+		Title:    meta.Title,
+		SiteName: meta.Provider,
+		Type:     string(meta.Type),
+		Image:    meta.Thumbnail,
 	}, nil
 }

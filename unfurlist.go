@@ -22,6 +22,7 @@
 // 			"title": "Rick Astley - Never Gonna Give You Up",
 // 			"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 // 			"url_type": "video",
+// 			"site_name": "YouTube",
 // 			"image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
 // 		}
 // 	]
@@ -87,6 +88,7 @@ type unfurlResult struct {
 	Title       string `json:"title,omitempty"`
 	Type        string `json:"url_type,omitempty"`
 	Description string `json:"description,omitempty"`
+	SiteName    string `json:"site_name,omitempty"`
 	Image       string `json:"image,omitempty"`
 	ImageWidth  int    `json:"image_width,omitempty"`
 	ImageHeight int    `json:"image_height,omitempty"`
@@ -119,6 +121,9 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	}
 	if u.Description == "" {
 		u.Description = u2.Description
+	}
+	if u.SiteName == "" {
+		u.SiteName = u2.SiteName
 	}
 	if u.Image == "" {
 		u.Image = u2.Image
