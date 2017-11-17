@@ -102,7 +102,11 @@ func main() {
 		// idle connections occupying memory; force periodic close of
 		// them
 		for range time.NewTicker(2 * time.Minute).C {
-			httpClient.Transport.(*http.Transport).CloseIdleConnections()
+			if c, ok := httpClient.Transport.(interface {
+				CloseIdleConnections()
+			}); ok {
+				c.CloseIdleConnections()
+			}
 		}
 	}()
 
