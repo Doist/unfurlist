@@ -143,30 +143,6 @@ func readBlacklist(blacklist string) ([]string, error) {
 	return prefixes, nil
 }
 
-func readSubnets(name string) ([]*net.IPNet, error) {
-	f, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var subnets []*net.IPNet
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		if b := scanner.Bytes(); len(b) == 0 || b[0] == '#' {
-			continue
-		}
-		_, n, err := net.ParseCIDR(scanner.Text())
-		if err != nil {
-			return nil, err
-		}
-		subnets = append(subnets, n)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return subnets, nil
-}
-
 // failOnLoginPages can be used as http.Client.CheckRedirect to skip redirects
 // to login pages of most commonly used services or most commonly named login
 // pages. It also checks depth of redirect chain and stops on more then 10
