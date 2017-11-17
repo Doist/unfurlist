@@ -30,6 +30,10 @@
   version = "1.0.0"
 
 [[constraint]]
+  name = "github.com/artyom/useragent"
+  version = "1.0.0"
+
+[[constraint]]
   branch = "master"
   name = "github.com/bradfitz/gomemcache"
 
