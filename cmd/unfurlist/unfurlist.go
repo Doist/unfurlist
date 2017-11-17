@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -32,9 +31,7 @@ func main() {
 		Key            string        `flag:"sslkey,path to certificate file (PEM format)"`
 		Cache          string        `flag:"cache,address of memcached, disabled if empty"`
 		Blacklist      string        `flag:"blacklist,file with url prefixes to blacklist, one per line"`
-		PrivateSubnets string        `flag:"privateSubnets,file with subnets in CIDR notation to block requests to, one per line"`
 		WithDimensions bool          `flag:"withDimensions,return image dimensions if possible (extra request to fetch image)"`
-		GlobalOnly     bool          `flag:"globalOnly,allow only connections to global unicast IPs"`
 		Timeout        time.Duration `flag:"timeout,timeout for remote i/o"`
 		GoogleMapsKey  string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
 		VideoDomains   string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
@@ -64,24 +61,6 @@ func main() {
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		}, "unfurlist (https://github.com/Doist/unfurlist)"),
-	}
-	switch {
-	case args.PrivateSubnets != "":
-		sn, err := readSubnets(args.PrivateSubnets)
-		if err != nil {
-			log.Fatal(err)
-		}
-		tr, err := restrictedTransport(sn, args.GlobalOnly)
-		if err != nil {
-			log.Fatal(err)
-		}
-		httpClient.Transport = tr
-	case args.PrivateSubnets == "" && args.GlobalOnly:
-		tr, err := restrictedTransport(nil, args.GlobalOnly)
-		if err != nil {
-			log.Fatal(err)
-		}
-		httpClient.Transport = tr
 	}
 	configs := []unfurlist.ConfFunc{
 		unfurlist.WithExtraHeaders(map[string]string{
@@ -182,41 +161,6 @@ func readSubnets(name string) ([]*net.IPNet, error) {
 		return nil, err
 	}
 	return subnets, nil
-}
-
-// restrictedTransport returns http.Transport that blocks attempts to connect to specified
-// private subnets, if globalOnly specified, connections only allowed to IPs for which
-// IsGlobalUnicast() is true.
-func restrictedTransport(privateSubnets []*net.IPNet, globalOnly bool) (http.RoundTripper, error) {
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-	dialFunc := func(network, address string) (net.Conn, error) {
-		host, _, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, err
-		}
-		ips, err := net.LookupIP(host)
-		if err != nil {
-			return nil, err
-		}
-		for _, ip := range ips {
-			if globalOnly && !ip.IsGlobalUnicast() {
-				return nil, fmt.Errorf("dialing to non-local ip %v is prohibited", ip)
-			}
-			for _, subnet := range privateSubnets {
-				if subnet.Contains(ip) {
-					return nil, fmt.Errorf("dialing to ip %v from subnet %v is prohibited", ip, subnet)
-				}
-			}
-		}
-		return dialer.Dial(network, address)
-	}
-	var tr http.Transport
-	tr = *(http.DefaultTransport).(*http.Transport)
-	tr.Dial = dialFunc
-	return &tr, nil
 }
 
 // failOnLoginPages can be used as http.Client.CheckRedirect to skip redirects

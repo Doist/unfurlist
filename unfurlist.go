@@ -33,6 +33,24 @@
 //
 // Additionally you can supply `callback` to wrap the result in a JavaScript callback (JSONP),
 // the type of this response would be "application/x-javascript"
+//
+// Security
+//
+// Care should be taken when running this inside internal network since it may
+// disclose internal endpoints. It is a good idea to run the service on
+// a separate host in an isolated subnet.
+//
+// Alternatively access to internal resources may be limited with firewall
+// rules, i.e. if service is running as 'unfurlist' user on linux box, the
+// following iptables rules can reduce chances of it connecting to internal
+// endpoints (note this example is for ipv4 only!):
+//
+//	iptables -A OUTPUT -m owner --uid-owner unfurlist -p tcp --syn \
+//		-d 127/8,10/8,169.254/16,172.16/12,192.168/16 \
+//		-j REJECT --reject-with icmp-net-prohibited
+//	ip6tables -A OUTPUT -m owner --uid-owner unfurlist -p tcp --syn \
+//		-d ::1/128,fe80::/10 \
+//		-j REJECT --reject-with adm-prohibited
 package unfurlist
 
 import (
