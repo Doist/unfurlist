@@ -55,6 +55,7 @@ package unfurlist
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"crypto/sha1"
 	"encoding/json"
@@ -419,6 +420,16 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, errors.New("bad status: " + resp.Status)
+	}
+	if resp.Header.Get("Content-Encoding") == "deflate" &&
+		strings.HasSuffix(resp.Request.Host, "twitter.com") {
+		// twitter sends unsolicited deflate-encoded responses
+		// violating RFC; workaround this.
+		// See https://golang.org/issues/18779 for background
+		var err error
+		if resp.Body, err = zlib.NewReader(resp.Body); err != nil {
+			return nil, err
+		}
 	}
 	head, err := ioutil.ReadAll(io.LimitReader(resp.Body, h.MaxBodyChunkSize))
 	if err != nil {
