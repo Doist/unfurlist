@@ -1,6 +1,7 @@
 package unfurlist
 
 import (
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -65,4 +66,55 @@ func parseURLsMax(content string, maxItems int) []string {
 		seen[v] = struct{}{}
 	}
 	return out
+}
+
+// validURL returns true if s is a valid absolute url with http/https scheme.
+// In addition to verification that s is not empty and url.Parse(s) returns nil
+// error, validURL also ensures that query part only contains characters allowed
+// by RFC 3986 3.4.
+//
+// This is required because url.Parse doesn't verify query part of the URI.
+func validURL(s string) bool {
+	if s == "" {
+		return false
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+	if u.Host == "" {
+		return false
+	}
+	switch u.Scheme {
+	case "http", "https":
+	default:
+		return false
+	}
+	for _, r := range u.RawQuery {
+		// https://tools.ietf.org/html/rfc3986#section-3.4 defines:
+		//
+		//	query       = *( pchar / "/" / "?" )
+		//	pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+		//	unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+		//	pct-encoded   = "%" HEXDIG HEXDIG
+		//	sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+		//			/ "*" / "+" / "," / ";" / "="
+		//
+		// check for these
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'A' && r <= 'Z':
+		case r >= 'a' && r <= 'z':
+		default:
+			switch r {
+			case '/', '?',
+				':', '@',
+				'-', '.', '_', '~',
+				'%', '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=':
+			default:
+				return false
+			}
+		}
+	}
+	return true
 }

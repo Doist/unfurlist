@@ -347,8 +347,13 @@ hasMatch:
 	switch absURL, err := absoluteImageURL(result.URL, result.Image); err {
 	case errEmptyImageURL:
 	case nil:
-		result.Image = absURL
-		if h.FetchImageSize && (result.ImageWidth == 0 || result.ImageHeight == 0) {
+		switch {
+		case validURL(absURL):
+			result.Image = absURL
+		default:
+			result.Image = ""
+		}
+		if result.Image != "" && h.FetchImageSize && (result.ImageWidth == 0 || result.ImageHeight == 0) {
 			if width, height, err := imageDimensions(ctx, h.HTTPClient, result.Image); err != nil {
 				h.Log.Printf("dimensions detect for image %q: %v", result.Image, err)
 			} else {

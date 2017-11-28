@@ -70,3 +70,22 @@ func TestBugURL(t *testing.T) {
 		}
 	}
 }
+
+func TestValidURL(t *testing.T) {
+	testCases := []struct {
+		u   string
+		res bool
+	}{
+		{"http://example.com/path?multi+word+escaped+query", true},
+		{"https://example.com/path?unescaped query", false},
+		{"ftp://example.com/unsupported/scheme", false},
+		{"", false},
+		{"https://example.com/path", true},
+		{"https:///path", false},
+	}
+	for _, tc := range testCases {
+		if validURL(tc.u) != tc.res {
+			t.Fatalf("validURL(%q)==%t, want %t", tc.u, !tc.res, tc.res)
+		}
+	}
+}
