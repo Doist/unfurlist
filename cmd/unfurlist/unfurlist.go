@@ -151,6 +151,9 @@ func failOnLoginPages(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
+	if l := len(via); l > 0 && *req.URL == *via[l-1].URL {
+		return errors.New("redirect loop")
+	}
 	if strings.Contains(strings.ToLower(req.URL.Host), "login") ||
 		strings.Contains(strings.ToLower(req.URL.Path), "login") {
 		return errWantLogin
