@@ -4,6 +4,9 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/gomarkdown/markdown/ast"
+	"github.com/gomarkdown/markdown/parser"
 )
 
 // reUrls matches sequence of characters described by RFC 3986 having http:// or
@@ -117,4 +120,28 @@ func validURL(s string) bool {
 		}
 	}
 	return true
+}
+
+func parseMarkdownURLs(content string, maxItems int) []string {
+	doc := parser.New().Parse([]byte(content))
+	var urls []string
+	walkFn := func(node ast.Node, entering bool) ast.WalkStatus {
+		if maxItems >= 0 && len(urls) == maxItems {
+			return ast.Terminate
+		}
+		if !entering {
+			return ast.GoToNext
+		}
+		switch n := node.(type) {
+		case *ast.Link:
+			if s := string(n.Destination); validURL(s) {
+				urls = append(urls, s)
+			}
+		case *ast.Code, *ast.CodeBlock:
+			return ast.SkipChildren
+		}
+		return ast.GoToNext
+	}
+	_ = ast.Walk(doc, ast.NodeVisitorFunc(walkFn))
+	return urls
 }

@@ -34,6 +34,10 @@
 // Additionally you can supply `callback` to wrap the result in a JavaScript callback (JSONP),
 // the type of this response would be "application/x-javascript"
 //
+// If an optional `markdown` boolean argument is set (markdown=true), then
+// provided content is parsed as markdown formatted text and links are extracted
+// in context-aware mode — i.e. preformatted text blocks are skipped.
+//
 // Security
 //
 // Care should be taken when running this inside internal network since it may
@@ -205,13 +209,20 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	args := struct {
 		Content  string `flag:"content"`
 		Callback string `flag:"callback"`
+		Markdown bool   `flag:"markdown"`
 	}{}
 	if err := httpflags.Parse(&args, r); err != nil || args.Content == "" {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	urls := parseURLsMax(args.Content, 20)
+	var urls []string
+	switch {
+	case args.Markdown:
+		urls = parseMarkdownURLs(args.Content, 20)
+	default:
+		urls = parseURLsMax(args.Content, 20)
+	}
 
 	jobResults := make(chan *unfurlResult, 1)
 	results := make(unfurlResults, 0, len(urls))

@@ -89,3 +89,42 @@ func TestValidURL(t *testing.T) {
 		}
 	}
 }
+
+func TestParseMarkdownURLs(t *testing.T) {
+	text := `Implicit url: http://example.com/1, [explicit url](http://example.com/2).
+
+This url should be skipped ` + "`http://example.com/3`" + `, as well as the one inside code block:
+
+	preformatted text block with url: http://example.com/4
+
+Another paragraph with implicit link http://example.com/5.
+	`
+	got := parseMarkdownURLs(text, 10)
+	want := []string{"http://example.com/1", "http://example.com/2", "http://example.com/5"}
+	if len(got) != len(want) {
+		t.Fatalf("want: %v, got: %v", want, got)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("%d: want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
+var escape []string
+
+func BenchmarkMarkdownURLs(b *testing.B) {
+	text := `Implicit url: http://example.com/1, [explicit url](http://example.com/2).
+
+This url should be skipped ` + "`http://example.com/3`" + `, as well as the one inside code block:
+
+	preformatted text block with url: http://example.com/4
+
+Another paragraph with implicit link http://example.com/5.
+	`
+	b.ReportAllocs()
+	b.SetBytes(int64(len(text)))
+	for i := 0; i < b.N; i++ {
+		escape = parseMarkdownURLs(text, 10)
+	}
+}
