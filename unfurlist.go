@@ -72,6 +72,7 @@ import (
 
 	"golang.org/x/net/html/charset"
 
+	"github.com/artyom/httpflags"
 	"github.com/artyom/oembed"
 	"github.com/bradfitz/gomemcache/memcache"
 )
@@ -201,20 +202,16 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
+	args := struct {
+		Content  string `flag:"content"`
+		Callback string `flag:"callback"`
+	}{}
+	if err := httpflags.Parse(&args, r); err != nil || args.Content == "" {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	content := r.Form.Get("content")
-	callback := r.Form.Get("callback")
-
-	if content == "" {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	urls := parseURLsMax(content, 20)
+	urls := parseURLsMax(args.Content, 20)
 
 	jobResults := make(chan *unfurlResult, 1)
 	results := make(unfurlResults, 0, len(urls))
@@ -242,15 +239,15 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.normalize()
 	}
 
-	if callback != "" {
+	if args.Callback != "" {
 		w.Header().Set("Content-Type", "application/x-javascript")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 	}
 
-	if callback != "" {
-		io.WriteString(w, callback+"(")
+	if args.Callback != "" {
+		io.WriteString(w, args.Callback+"(")
 		json.NewEncoder(w).Encode(results)
 		w.Write([]byte(")"))
 		return
