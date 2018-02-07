@@ -69,7 +69,7 @@
     "html/atom",
     "html/charset"
   ]
-  revision = "9dfe39835686865bff950a07b394c12a98ddc811"
+  revision = "2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1"
 
 [[projects]]
   branch = "master"
@@ -93,7 +93,7 @@
     "transform",
     "unicode/cldr"
   ]
-  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
+  revision = "e19ae1496984b1c655b8044a65c0300a3c878dd3"
 
 [solve-meta]
   analyzer-name = "dep"
