@@ -35,6 +35,8 @@ func main() {
 		Timeout        time.Duration `flag:"timeout,timeout for remote i/o"`
 		GoogleMapsKey  string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
 		VideoDomains   string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
+		ImageProxyURL  string        `flag:"image.proxy.url,url to proxy http:// image urls through"`
+		ImageProxyKey  string        `flag:"image.proxy.secret,secret to generate sha1 HMAC signatures"`
 	}{
 		Listen:  "localhost:8080",
 		Pprof:   "localhost:6060",
@@ -81,6 +83,10 @@ func main() {
 	if args.Cache != "" {
 		log.Print("Enable cache at ", args.Cache)
 		configs = append(configs, unfurlist.WithMemcache(memcache.New(args.Cache)))
+	}
+	if args.ImageProxyURL != "" {
+		configs = append(configs,
+			unfurlist.WithImageProxy(args.ImageProxyURL, args.ImageProxyKey))
 	}
 	var ff []unfurlist.FetchFunc
 	if args.GoogleMapsKey != "" {
