@@ -2,7 +2,7 @@ package unfurlist
 
 import "fmt"
 
-func ExamplePrefixMap() {
+func ExampleprefixMap() {
 	pm := newPrefixMap([]string{"https://mail.google.com/mail/", "https://trello.com/c/"})
 
 	urls := []string{
