@@ -37,10 +37,12 @@ func main() {
 		VideoDomains   string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
 		ImageProxyURL  string        `flag:"image.proxy.url,url to proxy http:// image urls through"`
 		ImageProxyKey  string        `flag:"image.proxy.secret,secret to generate sha1 HMAC signatures"`
+		MaxResults     int           `flag:"max,maximum number of results to get for single request"`
 	}{
-		Listen:  "localhost:8080",
-		Pprof:   "localhost:6060",
-		Timeout: 30 * time.Second,
+		Listen:     "localhost:8080",
+		Pprof:      "localhost:6060",
+		Timeout:    30 * time.Second,
+		MaxResults: unfurlist.DefaultMaxResults,
 	}
 	autoflags.Define(&args)
 	flag.Parse()
@@ -72,6 +74,7 @@ func main() {
 		unfurlist.WithHTTPClient(httpClient),
 		unfurlist.WithImageDimensions(args.WithDimensions),
 		unfurlist.WithBlacklistTitles(titleBlacklist),
+		unfurlist.WithMaxResults(args.MaxResults),
 	}
 	if args.Blacklist != "" {
 		prefixes, err := readBlacklist(args.Blacklist)

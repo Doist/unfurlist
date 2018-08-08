@@ -85,6 +85,10 @@ import (
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
 
+// DefaultMaxResults is maximum number of urls to process if not configured by
+// WithMaxResults function
+const DefaultMaxResults = 20
+
 type unfurlHandler struct {
 	HTTPClient       *http.Client
 	Log              Logger
@@ -101,6 +105,8 @@ type unfurlHandler struct {
 	titleBlacklist []string
 
 	pmap *prefixMap // built from BlacklistPrefix
+
+	maxResults int // max number of urls to process
 
 	imageProxyURL string
 	imageProxyKey []byte
@@ -178,7 +184,8 @@ type ConfFunc func(*unfurlHandler) *unfurlHandler
 // provided, sane defaults would be used.
 func New(conf ...ConfFunc) http.Handler {
 	h := &unfurlHandler{
-		inFlight: make(map[string]chan struct{}),
+		inFlight:   make(map[string]chan struct{}),
+		maxResults: DefaultMaxResults,
 	}
 	for _, f := range conf {
 		h = f(h)
@@ -224,9 +231,9 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var urls []string
 	switch {
 	case args.Markdown:
-		urls = parseMarkdownURLs(args.Content, 20)
+		urls = parseMarkdownURLs(args.Content, h.maxResults)
 	default:
-		urls = parseURLsMax(args.Content, 20)
+		urls = parseURLsMax(args.Content, h.maxResults)
 	}
 
 	jobResults := make(chan *unfurlResult, 1)

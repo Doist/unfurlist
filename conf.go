@@ -108,6 +108,17 @@ func WithImageProxy(proxyURL, secret string) ConfFunc {
 	}
 }
 
+// WithMaxResults configures unfurl handler to only process n first urls it
+// finds. n must be positive.
+func WithMaxResults(n int) ConfFunc {
+	return func(h *unfurlHandler) *unfurlHandler {
+		if n > 0 {
+			h.maxResults = n
+		}
+		return h
+	}
+}
+
 // WithLogger configures unfurl handler to use provided logger
 func WithLogger(l Logger) ConfFunc {
 	return func(h *unfurlHandler) *unfurlHandler {
