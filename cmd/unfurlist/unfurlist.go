@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -164,7 +165,7 @@ func failOnLoginPages(req *http.Request, via []*http.Request) error {
 		return errors.New("redirect loop")
 	}
 	if strings.Contains(strings.ToLower(req.URL.Host), "login") ||
-		strings.Contains(strings.ToLower(req.URL.Path), "login") {
+		loginPathRe.MatchString(req.URL.Path) {
 		return errWantLogin
 	}
 	u := *req.URL
@@ -174,6 +175,8 @@ func failOnLoginPages(req *http.Request, via []*http.Request) error {
 	}
 	return nil
 }
+
+var loginPathRe = regexp.MustCompile(`(?i)login|sign.?in`)
 
 var errWantLogin = errors.New("resource requires login")
 
