@@ -12,7 +12,7 @@ import (
 // reUrls matches sequence of characters described by RFC 3986 having http:// or
 // https:// prefix. It actually allows superset of characters from RFC 3986,
 // allowing some most commonly used characters like {}, etc.
-var reUrls = regexp.MustCompile(`https?://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+`)
+var reUrls = regexp.MustCompile(`(?i:https?)://[%:/?#\[\]@!$&'\(\){}*+,;=\pL\pN._~-]+`)
 
 // ParseURLs tries to extract unique url-like (http/https scheme only) substrings from
 // given text. Results may not be proper urls, since only sequence of matched

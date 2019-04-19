@@ -12,6 +12,8 @@ func ExampleParseURLs() {
 	http://marvel-movies.wikia.com/wiki/The_Avengers_(film), https://pt.wikipedia.org/wiki/Mamão.
 	https://docs.live.net/foo/?section-id={D7CEDACE-AEFB-4B61-9C63-BDE05EEBD80A},
 	http://example.com/?param=foo;bar
+	HTTPS://EXAMPLE.COM/UPPERCASE
+	hTtP://example.com/mixedCase
 	`
 	for _, u := range ParseURLs(text) {
 		fmt.Println(u)
@@ -26,6 +28,8 @@ func ExampleParseURLs() {
 	// https://pt.wikipedia.org/wiki/Mamão
 	// https://docs.live.net/foo/?section-id={D7CEDACE-AEFB-4B61-9C63-BDE05EEBD80A}
 	// http://example.com/?param=foo;bar
+	// HTTPS://EXAMPLE.COM/UPPERCASE
+	// hTtP://example.com/mixedCase
 }
 
 func TestParseURLs__unique(t *testing.T) {
