@@ -9,6 +9,6 @@ require (
 	github.com/dyatlov/go-opengraph v0.0.0-20180429202543-816b6608b3c8
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gomarkdown/markdown v0.0.0-20180807065434-01a56b20f887
-	golang.org/x/net v0.0.0-20180218175443-cbe0f9307d01
-	golang.org/x/text v0.0.0-20180208041248-4e4a3210bb54 // indirect
+	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
+	golang.org/x/text v0.3.1 // indirect
 )
