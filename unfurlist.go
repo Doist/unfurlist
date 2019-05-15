@@ -17,15 +17,17 @@
 //
 //     Type: "application/json"
 //
-// 	[
-// 		{
-// 			"title": "Rick Astley - Never Gonna Give You Up",
-// 			"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-// 			"url_type": "video",
-// 			"site_name": "YouTube",
-// 			"image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
-// 		}
-// 	]
+//	[
+//		{
+//			"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+//			"title": "Rick Astley - Never Gonna Give You Up (Video)",
+//			"url_type": "video.other",
+//			"description": "Rick Astley - Never Gonna Give You Up...",
+//			"site_name": "YouTube",
+//			"favicon": "https://www.youtube.com/yts/img/favicon_32-vflOogEID.png",
+//			"image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
+//		}
+//	]
 //
 // If handler was configured with FetchImageSize=true in its config, each hash
 // may have additional fields `image_width` and `image_height` specifying
@@ -75,6 +77,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/html/charset"
 
@@ -123,6 +126,7 @@ type unfurlResult struct {
 	Type        string `json:"url_type,omitempty"`
 	Description string `json:"description,omitempty"`
 	SiteName    string `json:"site_name,omitempty"`
+	Favicon     string `json:"favicon,omitempty"`
 	Image       string `json:"image,omitempty"`
 	ImageWidth  int    `json:"image_width,omitempty"`
 	ImageHeight int    `json:"image_height,omitempty"`
@@ -331,6 +335,9 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 	if err != nil {
 		return result
 	}
+	if s, err := h.faviconLookup(ctx, chunk); err == nil && s != "" {
+		result.Favicon = s
+	}
 	for _, f := range h.fetchers {
 		meta, ok := f(chunk.url)
 		if !ok || !meta.Valid() {
@@ -475,6 +482,45 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 		url:  resp.Request.URL,
 		ct:   resp.Header.Get("Content-Type"),
 	}, nil
+}
+
+func (h *unfurlHandler) faviconLookup(ctx context.Context, chunk *pageChunk) (string, error) {
+	if strings.HasPrefix(chunk.ct, "text/html") {
+		href := extractFaviconLink(chunk.data, chunk.ct)
+		if href == "" {
+			goto probeDefaultIcon
+		}
+		u, err := url.Parse(href)
+		if err != nil {
+			return "", err
+		}
+		return chunk.url.ResolveReference(u).String(), nil
+	}
+probeDefaultIcon:
+	u := &url.URL{Scheme: chunk.url.Scheme, Host: chunk.url.Host, Path: "/favicon.ico"}
+	client := h.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	req, err := http.NewRequest(http.MethodHead, u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < len(h.Headers); i += 2 {
+		req.Header.Set(h.Headers[i], h.Headers[i+1])
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
+	r, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer r.Body.Close()
+	if r.StatusCode == http.StatusOK {
+		return u.String(), nil
+	}
+	return "", nil
 }
 
 // mcKey returns string of hex representation of sha1 sum of string provided.
