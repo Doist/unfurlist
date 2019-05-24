@@ -526,9 +526,7 @@ probeDefaultIcon:
 // mcKey returns string of hex representation of sha1 sum of string provided.
 // Used to get safe keys to use with memcached
 func mcKey(s string) string {
-	h := sha1.New()
-	io.WriteString(h, s)
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
 }
 
 func blacklisted(blacklist []string, title string) bool {
