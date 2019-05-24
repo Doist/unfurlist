@@ -84,6 +84,7 @@ import (
 	"github.com/artyom/httpflags"
 	"github.com/artyom/oembed"
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/golang/snappy"
 )
 
 const defaultMaxBodyChunkSize = 1024 * 64 //64KB
@@ -323,11 +324,13 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 
 	if mc := h.Cache; mc != nil {
 		if it, err := mc.Get(mcKey(link)); err == nil {
-			var cached unfurlResult
-			if err = json.Unmarshal(it.Value, &cached); err == nil {
-				h.Log.Printf("Cache hit for %q", link)
-				cached.idx = i
-				return &cached
+			if b, err := snappy.Decode(nil, it.Value); err == nil {
+				var cached unfurlResult
+				if err = json.Unmarshal(b, &cached); err == nil {
+					h.Log.Printf("Cache hit for %q", link)
+					cached.idx = i
+					return &cached
+				}
 			}
 		}
 	}
@@ -405,7 +408,7 @@ hasMatch:
 	if mc := h.Cache; mc != nil && !result.Empty() {
 		if cdata, err := json.Marshal(result); err == nil {
 			h.Log.Printf("Cache update for %q", link)
-			mc.Set(&memcache.Item{Key: mcKey(link), Value: cdata})
+			mc.Set(&memcache.Item{Key: mcKey(link), Value: snappy.Encode(nil, cdata)})
 		}
 	}
 	return result
