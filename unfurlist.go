@@ -338,6 +338,10 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 	if err != nil {
 		return result
 	}
+	if chunk.likelyCaptcha() {
+		h.Log.Printf("captcha wall: %q", link)
+		return result
+	}
 	if s, err := h.faviconLookup(ctx, chunk); err == nil && s != "" {
 		result.Favicon = s
 	}
@@ -436,6 +440,16 @@ func (p *pageChunk) oembedEndpoint(fn oembed.LookupFunc) (url string, found bool
 		return u, true
 	}
 	return "", false
+}
+
+// likelyCaptcha returns true if it looks like a captcha wall
+func (p *pageChunk) likelyCaptcha() bool {
+	if !strings.HasPrefix(strings.ToLower(p.ct), "text/html") {
+		return false
+	}
+	// for youtube:
+	return bytes.Contains(p.data, []byte(`<p>To continue with your YouTube experience, please fill out the form below.</p>`)) ||
+		bytes.Contains(p.data, []byte(`<form action="/das_captcha"`))
 }
 
 func (h *unfurlHandler) httpGet(ctx context.Context, URL string) (*http.Response, error) {
