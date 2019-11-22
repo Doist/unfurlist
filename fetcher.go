@@ -1,10 +1,14 @@
 package unfurlist
 
-import "net/url"
+import (
+	"context"
+	"net/http"
+	"net/url"
+)
 
 // FetchFunc defines custom metadata fetchers that can be attached to unfurl
 // handler
-type FetchFunc func(*url.URL) (*Metadata, bool)
+type FetchFunc func(context.Context, *http.Client, *url.URL) (*Metadata, bool)
 
 // Metadata represents metadata retrieved by FetchFunc. At least one of Title,
 // Description or Image attributes are expected to be non-empty.
