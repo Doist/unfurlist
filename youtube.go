@@ -17,7 +17,10 @@ import (
 // response that does not include oembed endpoint address as part of such html
 // page.
 func youtubeFetcher(ctx context.Context, client *http.Client, u *url.URL) (*Metadata, bool) {
-	if !(u.Host == "www.youtube.com" && u.Path == "/watch" && strings.HasPrefix(u.RawQuery, "v=")) {
+	switch {
+	case u.Host == "youtu.be" && len(u.Path) > 2:
+	case u.Host == "www.youtube.com" && u.Path == "/watch" && strings.HasPrefix(u.RawQuery, "v="):
+	default:
 		return nil, false
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
