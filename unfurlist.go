@@ -195,6 +195,7 @@ func New(conf ...ConfFunc) http.Handler {
 	for _, f := range conf {
 		h = f(h)
 	}
+	h.fetchers = append(h.fetchers, youtubeFetcher)
 	if h.HTTPClient == nil {
 		h.HTTPClient = http.DefaultClient
 	}
