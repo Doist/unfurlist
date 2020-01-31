@@ -1,7 +1,7 @@
 module github.com/Doist/unfurlist
 
 require (
-	github.com/artyom/autoflags v1.1.0
+	github.com/artyom/autoflags v1.1.1
 	github.com/artyom/httpflags v1.1.1
 	github.com/artyom/oembed v1.0.0
 	github.com/artyom/useragent v1.0.0
