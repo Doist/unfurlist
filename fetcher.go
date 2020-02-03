@@ -23,5 +23,5 @@ type Metadata struct {
 
 // Valid check that at least one of the mandatory attributes is non-empty
 func (m *Metadata) Valid() bool {
-	return m != nil || m.Title != "" || m.Description != "" || m.Image != ""
+	return m != nil && (m.Title != "" || m.Description != "" || m.Image != "")
 }
