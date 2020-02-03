@@ -195,6 +195,7 @@ func New(conf ...ConfFunc) http.Handler {
 	for _, f := range conf {
 		h = f(h)
 	}
+	h.fetchers = append(h.fetchers, youtubeFetcher)
 	if h.HTTPClient == nil {
 		h.HTTPClient = http.DefaultClient
 	}
@@ -342,7 +343,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		result.Favicon = s
 	}
 	for _, f := range h.fetchers {
-		meta, ok := f(chunk.url)
+		meta, ok := f(ctx, h.HTTPClient, chunk.url)
 		if !ok || !meta.Valid() {
 			continue
 		}

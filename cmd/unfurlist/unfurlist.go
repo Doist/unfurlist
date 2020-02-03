@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"io"
@@ -200,12 +201,12 @@ var titleBlacklist = []string{
 
 // videoThumbnailsFetcher return unfurlist.FetchFunc that returns metadata
 // with url to video thumbnail file for supported domains.
-func videoThumbnailsFetcher(domains ...string) func(*url.URL) (*unfurlist.Metadata, bool) {
+func videoThumbnailsFetcher(domains ...string) func(context.Context, *http.Client, *url.URL) (*unfurlist.Metadata, bool) {
 	doms := make(map[string]struct{})
 	for _, d := range domains {
 		doms[d] = struct{}{}
 	}
-	return func(u *url.URL) (*unfurlist.Metadata, bool) {
+	return func(_ context.Context, _ *http.Client, u *url.URL) (*unfurlist.Metadata, bool) {
 		if _, ok := doms[u.Host]; !ok {
 			return nil, false
 		}

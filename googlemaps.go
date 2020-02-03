@@ -1,6 +1,8 @@
 package unfurlist
 
 import (
+	"context"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -11,9 +13,9 @@ import (
 // API. The only argument is the API key to create image links with.
 func GoogleMapsFetcher(key string) FetchFunc {
 	if key == "" {
-		return func(*url.URL) (*Metadata, bool) { return nil, false }
+		return func(context.Context, *http.Client, *url.URL) (*Metadata, bool) { return nil, false }
 	}
-	return func(u *url.URL) (*Metadata, bool) {
+	return func(_ context.Context, _ *http.Client, u *url.URL) (*Metadata, bool) {
 		if u == nil {
 			return nil, false
 		}
