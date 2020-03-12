@@ -195,7 +195,6 @@ func New(conf ...ConfFunc) http.Handler {
 	for _, f := range conf {
 		h = f(h)
 	}
-	h.fetchers = append(h.fetchers, youtubeFetcher)
 	if h.HTTPClient == nil {
 		h.HTTPClient = http.DefaultClient
 	}
@@ -337,6 +336,17 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 	}
 	chunk, err := h.fetchData(ctx, result.URL)
 	if err != nil {
+		if chunk != nil && strings.Contains(chunk.url.Host, "youtube.com") {
+			if meta, ok := youtubeFetcher(ctx, h.HTTPClient, chunk.url); ok && meta.Valid() {
+				result.Title = meta.Title
+				result.Type = meta.Type
+				result.Description = meta.Description
+				result.Image = meta.Image
+				result.ImageWidth = meta.ImageWidth
+				result.ImageHeight = meta.ImageHeight
+				goto hasMatch
+			}
+		}
 		return result
 	}
 	if s, err := h.faviconLookup(ctx, chunk); err == nil && s != "" {
@@ -465,7 +475,10 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, errors.New("bad status: " + resp.Status)
+		// returning pageChunk with the final url (after all redirects) so that
+		// special cases like youtube returning 429 can be handled by
+		// specialized fetchers like youtubeFetcher
+		return &pageChunk{url: resp.Request.URL}, errors.New("bad status: " + resp.Status)
 	}
 	if resp.Header.Get("Content-Encoding") == "deflate" &&
 		strings.HasSuffix(resp.Request.Host, "twitter.com") {
