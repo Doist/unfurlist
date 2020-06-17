@@ -383,14 +383,14 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		goto hasMatch
 	}
 
-	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
-		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
+	if res := openGraphParseHTML(chunk); res != nil {
+		if !blacklisted(h.titleBlacklist, res.Title) {
 			result.Merge(res)
 			goto hasMatch
 		}
 	}
-	if res := openGraphParseHTML(chunk); res != nil {
-		if !blacklisted(h.titleBlacklist, res.Title) {
+	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
+		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
