@@ -338,7 +338,20 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 			}
 		}
 	}
-	chunk, err := h.fetchData(ctx, result.URL)
+	var chunk *pageChunk
+	var err error
+	// Optimistically apply oembed logic to url we have, which can only work
+	// for non-minimized urls; however if it works, it'll let us skip fetching
+	// url altogether. This can also somewhat help against sites redirecting to
+	// captchas/login pages when they see requests from non "home ISP"
+	// networks.
+	if endpoint, ok := h.oembedLookupFunc(result.URL); ok {
+		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
+			result.Merge(res)
+			goto hasMatch
+		}
+	}
+	chunk, err = h.fetchData(ctx, result.URL)
 	if err != nil {
 		if chunk != nil && strings.Contains(chunk.url.Host, "youtube.com") {
 			if meta, ok := youtubeFetcher(ctx, h.HTTPClient, chunk.url); ok && meta.Valid() {
