@@ -137,10 +137,6 @@ func TestUnfurlist__singleInFlightRequest(t *testing.T) {
 		},
 	}))
 
-	req, err := http.NewRequest("GET", "/?content=https://news.ycombinator.com/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var wg sync.WaitGroup
 	barrier := make(chan struct{})
 	for i := 0; i < 3; i++ {
@@ -148,6 +144,7 @@ func TestUnfurlist__singleInFlightRequest(t *testing.T) {
 		go func() {
 			w := httptest.NewRecorder()
 			<-barrier
+			req := httptest.NewRequest("GET", "/?content=https://news.ycombinator.com/", nil)
 			handler.ServeHTTP(w, req)
 			wg.Done()
 		}()
@@ -174,7 +171,7 @@ func replayHandlerSerial(t *testing.T) func(w http.ResponseWriter, r *http.Reque
 		_, ok := inFlight.reqs[key]
 		if ok {
 			inFlight.mu.Unlock()
-			t.Fatalf("request for %q is already in flight", key)
+			t.Errorf("request for %q is already in flight", key)
 			return
 		}
 		inFlight.reqs[key] = struct{}{}
