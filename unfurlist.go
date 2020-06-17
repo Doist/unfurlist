@@ -126,6 +126,7 @@ type unfurlResult struct {
 	Title       string `json:"title,omitempty"`
 	Type        string `json:"url_type,omitempty"`
 	Description string `json:"description,omitempty"`
+	HTML        string `json:"html,omitempty"`
 	SiteName    string `json:"site_name,omitempty"`
 	Favicon     string `json:"favicon,omitempty"`
 	Image       string `json:"image,omitempty"`
@@ -160,6 +161,9 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	}
 	if u.Description == "" {
 		u.Description = u2.Description
+	}
+	if u.HTML == "" {
+		u.HTML = u2.HTML
 	}
 	if u.SiteName == "" {
 		u.SiteName = u2.SiteName
@@ -366,14 +370,14 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		goto hasMatch
 	}
 
-	if res := openGraphParseHTML(chunk); res != nil {
-		if !blacklisted(h.titleBlacklist, res.Title) {
+	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
+		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
 	}
-	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
-		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
+	if res := openGraphParseHTML(chunk); res != nil {
+		if !blacklisted(h.titleBlacklist, res.Title) {
 			result.Merge(res)
 			goto hasMatch
 		}
