@@ -17,11 +17,15 @@ func fetchOembed(ctx context.Context, url string, fn func(context.Context, strin
 	if err != nil {
 		return nil, err
 	}
-	return &unfurlResult{
+	res := &unfurlResult{
 		Title:    meta.Title,
 		SiteName: meta.Provider,
 		Type:     string(meta.Type),
 		HTML:     meta.HTML,
 		Image:    meta.Thumbnail,
-	}, nil
+	}
+	if meta.Type == oembed.TypePhoto && meta.URL != "" {
+		res.Image = meta.URL
+	}
+	return res, nil
 }
