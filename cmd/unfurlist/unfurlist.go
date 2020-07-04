@@ -32,7 +32,7 @@ func main() {
 		Cert           string        `flag:"sslcert,path to certificate file (PEM format)"`
 		Key            string        `flag:"sslkey,path to certificate file (PEM format)"`
 		Cache          string        `flag:"cache,address of memcached, disabled if empty"`
-		Blacklist      string        `flag:"blacklist,file with url prefixes to blacklist, one per line"`
+		Blocklist      string        `flag:"blocklist,file with url prefixes to block, one per line"`
 		WithDimensions bool          `flag:"withDimensions,return image dimensions if possible (extra request to fetch image)"`
 		Timeout        time.Duration `flag:"timeout,timeout for remote i/o"`
 		GoogleMapsKey  string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
@@ -46,6 +46,7 @@ func main() {
 		Timeout:    30 * time.Second,
 		MaxResults: unfurlist.DefaultMaxResults,
 	}
+	flag.StringVar(&args.Blocklist, "blacklist", args.Blocklist, "DEPRECATED: use -blocklist instead")
 	autoflags.Define(&args)
 	flag.Parse()
 
@@ -75,15 +76,15 @@ func main() {
 		unfurlist.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
 		unfurlist.WithHTTPClient(httpClient),
 		unfurlist.WithImageDimensions(args.WithDimensions),
-		unfurlist.WithBlacklistTitles(titleBlacklist),
+		unfurlist.WithBlocklistTitles(titleBlocklist),
 		unfurlist.WithMaxResults(args.MaxResults),
 	}
-	if args.Blacklist != "" {
-		prefixes, err := readBlacklist(args.Blacklist)
+	if args.Blocklist != "" {
+		prefixes, err := readBlocklist(args.Blocklist)
 		if err != nil {
 			log.Fatal(err)
 		}
-		configs = append(configs, unfurlist.WithBlacklistPrefixes(prefixes))
+		configs = append(configs, unfurlist.WithBlocklistPrefixes(prefixes))
 	}
 	if args.Cache != "" {
 		log.Print("Enable cache at ", args.Cache)
@@ -135,8 +136,8 @@ func main() {
 	}
 }
 
-func readBlacklist(blacklist string) ([]string, error) {
-	f, err := os.Open(blacklist)
+func readBlocklist(blocklist string) ([]string, error) {
+	f, err := os.Open(blocklist)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +196,7 @@ func init() {
 
 }
 
-var titleBlacklist = []string{
+var titleBlocklist = []string{
 	"robot check", // Amazon
 }
 

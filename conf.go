@@ -42,9 +42,9 @@ func WithExtraHeaders(hdr map[string]string) ConfFunc {
 	}
 }
 
-// WithBlacklistPrefixes configures unfurl handler to skip unfurling urls
+// WithBlocklistPrefixes configures unfurl handler to skip unfurling urls
 // matching any provided prefix
-func WithBlacklistPrefixes(prefixes []string) ConfFunc {
+func WithBlocklistPrefixes(prefixes []string) ConfFunc {
 	var pmap *prefixMap
 	if len(prefixes) > 0 {
 		pmap = newPrefixMap(prefixes)
@@ -57,16 +57,16 @@ func WithBlacklistPrefixes(prefixes []string) ConfFunc {
 	}
 }
 
-// WithBlacklistTitles configures unfurl handler to skip unfurling urls that
+// WithBlocklistTitles configures unfurl handler to skip unfurling urls that
 // return pages which title contains one of substrings provided
-func WithBlacklistTitles(substrings []string) ConfFunc {
+func WithBlocklistTitles(substrings []string) ConfFunc {
 	ss := make([]string, len(substrings))
 	for i, s := range substrings {
 		ss[i] = strings.ToLower(s)
 	}
 	return func(h *unfurlHandler) *unfurlHandler {
 		if len(ss) > 0 {
-			h.titleBlacklist = ss
+			h.titleBlocklist = ss
 		}
 		return h
 	}

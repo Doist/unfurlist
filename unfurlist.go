@@ -106,9 +106,9 @@ type unfurlHandler struct {
 	// otherwise Headers are ignored.
 	Headers []string
 
-	titleBlacklist []string
+	titleBlocklist []string
 
-	pmap *prefixMap // built from BlacklistPrefix
+	pmap *prefixMap // built from BlocklistPrefix
 
 	maxResults int // max number of urls to process
 
@@ -321,8 +321,8 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		}
 	}
 
-	if h.pmap != nil && h.pmap.Match(link) { // blacklisted
-		h.Log.Printf("Blacklisted %q", link)
+	if h.pmap != nil && h.pmap.Match(link) { // blocklisted
+		h.Log.Printf("Blocklisted %q", link)
 		return result
 	}
 
@@ -384,7 +384,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 	}
 
 	if res := openGraphParseHTML(chunk); res != nil {
-		if !blacklisted(h.titleBlacklist, res.Title) {
+		if !blocklisted(h.titleBlocklist, res.Title) {
 			result.Merge(res)
 			goto hasMatch
 		}
@@ -396,7 +396,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		}
 	}
 	if res := basicParseHTML(chunk); res != nil {
-		if !blacklisted(h.titleBlacklist, res.Title) {
+		if !blocklisted(h.titleBlocklist, res.Title) {
 			result.Merge(res)
 		}
 	}
@@ -563,12 +563,12 @@ func mcKey(s string) string {
 	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
 }
 
-func blacklisted(blacklist []string, title string) bool {
-	if title == "" || len(blacklist) == 0 {
+func blocklisted(blocklilst []string, title string) bool {
+	if title == "" || len(blocklilst) == 0 {
 		return false
 	}
 	lt := strings.ToLower(title)
-	for _, s := range blacklist {
+	for _, s := range blocklilst {
 		if strings.Contains(lt, s) {
 			return true
 		}
