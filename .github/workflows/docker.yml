@@ -32,12 +32,12 @@ jobs:
       run: |
         docker build . --tag image
     - name: Log into registry
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${GITHUB_ACTOR} --password-stdin
+      run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${GITHUB_ACTOR} --password-stdin
     - name: Push image
       run: |
         set -u
         # https://help.github.com/en/actions/automating-your-workflow-with-github-actions/using-environment-variables
-        IMAGE_ID=docker.pkg.github.com/doist/$IMAGE_NAME/$IMAGE_NAME
+        IMAGE_ID=ghcr.io/doist/$IMAGE_NAME
 
          # Strip git ref prefix from version
         VERSION=${GITHUB_REF##*/}
