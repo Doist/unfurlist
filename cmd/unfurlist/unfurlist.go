@@ -40,6 +40,7 @@ func main() {
 		ImageProxyURL  string        `flag:"image.proxy.url,url to proxy http:// image urls through"`
 		ImageProxyKey  string        `flag:"image.proxy.secret,secret to generate sha1 HMAC signatures"`
 		MaxResults     int           `flag:"max,maximum number of results to get for single request"`
+		Ping           bool          `flag:"ping,respond with 200 OK on /ping path (for health checks)"`
 	}{
 		Listen:     "localhost:8080",
 		Pprof:      "localhost:6060",
@@ -121,13 +122,17 @@ func main() {
 			}
 		}
 	}()
-
+	mux := http.NewServeMux()
+	mux.Handle("/", handler)
+	if args.Ping {
+		mux.HandleFunc("/ping", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	}
 	srv := &http.Server{
 		Addr:         args.Listen,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  30 * time.Second,
-		Handler:      handler,
+		Handler:      mux,
 	}
 	if args.Cert != "" && args.Key != "" {
 		log.Fatal(srv.ListenAndServeTLS(args.Cert, args.Key))
