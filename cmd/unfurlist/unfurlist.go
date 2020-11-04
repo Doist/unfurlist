@@ -70,11 +70,15 @@ func main() {
 			ExpectContinueTimeout: 1 * time.Second,
 		}, "unfurlist (https://github.com/Doist/unfurlist)"),
 	}
+	logFlags := log.LstdFlags
+	if os.Getenv("AWS_EXECUTION_ENV") != "" {
+		logFlags = 0
+	}
 	configs := []unfurlist.ConfFunc{
 		unfurlist.WithExtraHeaders(map[string]string{
 			"Accept-Language": "en;q=1, *;q=0.5",
 		}),
-		unfurlist.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
+		unfurlist.WithLogger(log.New(os.Stderr, "", logFlags)),
 		unfurlist.WithHTTPClient(httpClient),
 		unfurlist.WithImageDimensions(args.WithDimensions),
 		unfurlist.WithBlocklistTitles(titleBlocklist),
