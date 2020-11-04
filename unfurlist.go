@@ -76,10 +76,10 @@ import (
 	"net/url"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/net/html/charset"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/artyom/httpflags"
 	"github.com/artyom/oembed"
@@ -116,8 +116,7 @@ type unfurlHandler struct {
 	imageProxyKey []byte
 
 	fetchers []FetchFunc
-	mu       sync.Mutex
-	inFlight map[string]chan struct{} // in-flight urls processed
+	inFlight singleflight.Group // in-flight urls processed
 }
 
 // Result that's returned back to the client
@@ -193,7 +192,6 @@ type ConfFunc func(*unfurlHandler) *unfurlHandler
 // provided, sane defaults would be used.
 func New(conf ...ConfFunc) http.Handler {
 	h := &unfurlHandler{
-		inFlight:   make(map[string]chan struct{}),
 		maxResults: DefaultMaxResults,
 	}
 	for _, f := range conf {
@@ -252,7 +250,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for i, r := range urls {
 		go func(ctx context.Context, i int, link string, jobResults chan *unfurlResult) {
 			select {
-			case jobResults <- h.processURL(ctx, i, link):
+			case jobResults <- h.processURLidx(ctx, i, link):
 			case <-ctx.Done():
 			}
 		}(ctx, i, r, jobResults)
@@ -287,40 +285,30 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+// processURLidx wraps processURL and adds provided index i to the result. It
+// also collapses multiple in-flight requests for the same url to a single
+// processURL call
+func (h *unfurlHandler) processURLidx(ctx context.Context, i int, link string) *unfurlResult {
+	defer h.inFlight.Forget(link)
+	v, _, shared := h.inFlight.Do(link, func() (interface{}, error) { return h.processURL(ctx, link), nil })
+	res, ok := v.(*unfurlResult)
+	if !ok {
+		panic("got unexpected type from singleflight.Do")
+	}
+	if shared && (*res == unfurlResult{URL: link}) && ctx.Err() == nil {
+		// an *incomplete* shared result, e.g. if context in another goroutine
+		// that called processURL was canceled early, need to refetch
+		res = h.processURL(ctx, link)
+	}
+	res2 := *res // make a copy because we're going to modify it
+	res2.idx = i
+	return &res2
+}
+
 // Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
 // If no match is found the result will be an object that just contains the URL
-func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unfurlResult {
-	result := &unfurlResult{idx: i, URL: link}
-	waitLogged := false
-	for {
-		// spinlock-like loop to ensure we don't have two in-flight
-		// outgoing requests for the same link
-		h.mu.Lock()
-		if ch, ok := h.inFlight[link]; ok {
-			h.mu.Unlock()
-			if !waitLogged {
-				h.Log.Printf("Wait for in-flight request to complete %q", link)
-				waitLogged = true
-			}
-			select {
-			case <-ch: // block until another goroutine processes the same url
-			case <-ctx.Done():
-				return result
-			}
-		} else {
-			ch = make(chan struct{})
-			h.inFlight[link] = ch
-			h.mu.Unlock()
-			defer func() {
-				h.mu.Lock()
-				delete(h.inFlight, link)
-				h.mu.Unlock()
-				close(ch)
-			}()
-			break
-		}
-	}
-
+func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResult {
+	result := &unfurlResult{URL: link}
 	if h.pmap != nil && h.pmap.Match(link) { // blocklisted
 		h.Log.Printf("Blocklisted %q", link)
 		return result
@@ -332,7 +320,6 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 				var cached unfurlResult
 				if err = json.Unmarshal(b, &cached); err == nil {
 					h.Log.Printf("Cache hit for %q", link)
-					cached.idx = i
 					return &cached
 				}
 			}

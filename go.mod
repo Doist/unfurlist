@@ -11,6 +11,7 @@ require (
 	github.com/golang/snappy v0.0.1
 	github.com/gomarkdown/markdown v0.0.0-20180807065434-01a56b20f887
 	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	golang.org/x/text v0.3.1 // indirect
 )
 
