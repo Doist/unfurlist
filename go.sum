@@ -5,6 +5,7 @@ github.com/artyom/httpflags v1.1.1 h1:jFEBSOolZ8J3sRx2473y/TbgQMgd9wJszGKmoMFgqU
 github.com/artyom/httpflags v1.1.1/go.mod h1:hipXJiUYR/L6Ny3KQkq4R88n76Wm62boW4dCvG0Hzvw=
 github.com/artyom/oembed v1.0.0 h1:4ETTF6kPo6aidg5o7g1DtlJMEQAqOEGfWYuU2aRxELc=
 github.com/artyom/oembed v1.0.0/go.mod h1:yOt+W9teyxTGIs1WDX6Oo2Yt0ryMX/mncvm+4Znmvns=
+github.com/artyom/oembed v1.0.1/go.mod h1:7ga4NCmPl7HCnjjNeUqCQiqyrYM3vhF/f6d5pXkpNNo=
 github.com/artyom/useragent v1.0.0 h1:2gw4kO1AeVctfkhJxWrdbSDlUw+ADbWl1K2qqShFzaw=
 github.com/artyom/useragent v1.0.0/go.mod h1:RIzGwwxyYdeKySGNXkNvdKGdarP+1tzRkv7b34Mjbrk=
 github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737 h1:rRISKWyXfVxvoa702s91Zl5oREZTrR3yv+tXrrX7G/g=
@@ -20,6 +21,7 @@ github.com/gomarkdown/markdown v0.0.0-20180807065434-01a56b20f887/go.mod h1:gmFA
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6 h1:FP8hkuE6yUEaJnK7O2eTuejKWwW+Rhfj80dQ2JcKxCU=
 golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+golang.org/x/net v0.0.0-20191112182307-2180aed22343/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 h1:SQFwaSi55rU7vdNs9Yr0Z324VNlrF+0wMqRXT4St8ck=
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
