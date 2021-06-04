@@ -18,7 +18,7 @@ var urls = []string{
 	"http://techcrunch.com/2015/11/09/basic-income-createathon/",
 	"https://www.youtube.com/watch?v=Ey8FzGECjFA",
 	"https://news.ycombinator.com/",
-	"https://twitter.com/amix3k/status/1399300280206909440",
+	"https://twitter.com/amix3k/status/679355208091181056",
 	"http://news.chosun.com/site/data/html_dir/2009/09/24/2009092401755.html",
 }
 
@@ -36,28 +36,18 @@ func main() {
 		if err != nil {
 			log.Fatal(v, err)
 		}
-
-		req, err := http.NewRequest(http.MethodGet, v, nil)
+		r, err := http.Get(v)
 		if err != nil {
 			log.Fatal(v, err)
 		}
-		req.Header.Set("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
-
-		resp, err := http.DefaultClient.Do(req)
+		if r.StatusCode >= 400 {
+			log.Fatal(v, r.Status)
+		}
+		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Fatal(v, err)
 		}
-
-		if resp.StatusCode >= 400 {
-			log.Fatal(v, resp.Status)
-		}
-
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(v, err)
-		}
-		resp.Body.Close()
-
+		r.Body.Close()
 		// store key without scheme
 		data[u.Host+u.RequestURI()] = string(b)
 	}

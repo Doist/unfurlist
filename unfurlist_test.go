@@ -18,31 +18,26 @@ func TestOpenGraph(t *testing.T) {
 		t.Fatalf("invalid result length: %v", result)
 	}
 
-	want := "Robots To Eat All The Jobs? Hackers, Policy Wonks Collaborate On A Basic Income Createathon This Weekend – TechCrunch"
+	want := "Robots To Eat All The Jobs? Hackers, Policy Wonks Collaborate On A Basic Income Createathon This Weekend"
 	if result[0].Title != want {
 		t.Errorf("unexpected Title, want %q, got %q", want, result[0].Title)
 	}
 
-	want = "https://techcrunch.com/wp-content/uploads/2015/11/basic-income-createathon.jpg?w=602"
+	want = "https://tctechcrunch2011.files.wordpress.com/2015/11/basic-income-createathon.jpg?w=764\u0026h=400\u0026crop=1"
 	if result[0].Image != want {
 		t.Errorf("unexpected Image, want %q, got %q", want, result[0].Image)
 	}
 }
 
 func TestOpenGraphTwitter(t *testing.T) {
-	result := doRequest("/?content=Test+https://twitter.com/amix3k/status/1399300280206909440", t)
+	result := doRequest("/?content=Test+https://twitter.com/amix3k/status/679355208091181056", t)
 	if len(result) != 1 {
 		t.Fatalf("invalid result length: %v", result)
 	}
 
-	want := "My current meeting schedule this week"
+	want := "Help a family out of hunger and poverty"
 	if !strings.Contains(result[0].Description, want) {
 		t.Errorf("unexpected Description, want %q, got %q", want, result[0].Description)
-	}
-
-	want = "https://pbs.twimg.com/media/E2tP8RaX0AUoEdv.jpg:large"
-	if result[0].Image != want {
-		t.Errorf("unexpected Image, want %q, got %q", want, result[0].Image)
 	}
 }
 
