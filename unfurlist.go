@@ -462,6 +462,7 @@ func (h *unfurlHandler) httpGet(ctx context.Context, URL string) (*http.Response
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
 	for i := 0; i < len(h.Headers); i += 2 {
 		req.Header.Set(h.Headers[i], h.Headers[i+1])
 	}
