@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 var urls = []string{
@@ -41,7 +42,12 @@ func main() {
 		if err != nil {
 			log.Fatal(v, err)
 		}
-		req.Header.Set("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
+
+		// Twitter only returns Open Graph data for specific user agents
+		// Here we pretend we are the Facebook crwaler
+		if strings.Contains(v, "://twitter.com") {
+			req.Header.Set("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
+		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {

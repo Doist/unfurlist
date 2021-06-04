@@ -462,7 +462,11 @@ func (h *unfurlHandler) httpGet(ctx context.Context, URL string) (*http.Response
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
+	// Twitter only returns Open Graph data for specific user agents
+	// Here we pretend we are the Facebook crwaler
+	if strings.Contains(URL, "://twitter.com/") {
+		req.Header.Set("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
+	}
 	for i := 0; i < len(h.Headers); i += 2 {
 		req.Header.Set(h.Headers[i], h.Headers[i+1])
 	}
