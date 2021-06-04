@@ -11,7 +11,10 @@
 // 	resp, err := client.Get("https://...")
 package useragent
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // Set wraps provided http.RoundTripper returning a new one that adds given
 // agent as User-Agent header for requests without such header or with empty
@@ -46,6 +49,9 @@ func (t uaT) RoundTrip(r *http.Request) (*http.Response, error) {
 		r2.Header[k] = v
 	}
 	r2.Header.Set("User-Agent", t.userAgent)
+	if r.URL.Host == "twitter.com" || strings.HasSuffix(r.URL.Host, ".twitter.com") {
+		r2.Header.Set("User-Agent", "DiscourseBot/1.0")
+	}
 	return t.Transport.RoundTrip(r2)
 }
 

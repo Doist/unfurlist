@@ -65,6 +65,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha1"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -209,7 +210,7 @@ func New(conf ...ConfFunc) http.Handler {
 	if h.Log == nil {
 		h.Log = log.New(ioutil.Discard, "", 0)
 	}
-	fn, err := oembed.Providers(strings.NewReader(providersData))
+	fn, err := oembed.Providers(bytes.NewReader(providersData))
 	if err != nil {
 		panic(err)
 	}
@@ -563,4 +564,5 @@ func blocklisted(blocklilst []string, title string) bool {
 	return false
 }
 
-//go:generate go run assets-update.go
+//go:embed data/providers.json
+var providersData []byte
