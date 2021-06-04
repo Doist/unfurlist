@@ -5,8 +5,6 @@ github.com/artyom/httpflags v1.1.1 h1:jFEBSOolZ8J3sRx2473y/TbgQMgd9wJszGKmoMFgqU
 github.com/artyom/httpflags v1.1.1/go.mod h1:hipXJiUYR/L6Ny3KQkq4R88n76Wm62boW4dCvG0Hzvw=
 github.com/artyom/oembed v1.0.0 h1:4ETTF6kPo6aidg5o7g1DtlJMEQAqOEGfWYuU2aRxELc=
 github.com/artyom/oembed v1.0.0/go.mod h1:yOt+W9teyxTGIs1WDX6Oo2Yt0ryMX/mncvm+4Znmvns=
-github.com/artyom/useragent v1.0.0 h1:2gw4kO1AeVctfkhJxWrdbSDlUw+ADbWl1K2qqShFzaw=
-github.com/artyom/useragent v1.0.0/go.mod h1:RIzGwwxyYdeKySGNXkNvdKGdarP+1tzRkv7b34Mjbrk=
 github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737 h1:rRISKWyXfVxvoa702s91Zl5oREZTrR3yv+tXrrX7G/g=
 github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
 github.com/dyatlov/go-opengraph v0.0.0-20180429202543-816b6608b3c8 h1:6muCmMJat6z7qptVrIf/+OWPxsjAfvhw5/6t+FwEkgg=

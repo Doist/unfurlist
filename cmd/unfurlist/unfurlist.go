@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/Doist/unfurlist"
+	"github.com/Doist/unfurlist/internal/useragent"
 	"github.com/artyom/autoflags"
-	"github.com/artyom/useragent"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
