@@ -22,25 +22,27 @@ import (
 	"github.com/Doist/unfurlist"
 	"github.com/Doist/unfurlist/internal/useragent"
 	"github.com/artyom/autoflags"
+	"github.com/artyom/oembed"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
 func main() {
 	args := struct {
-		Listen         string        `flag:"listen,address to listen, set both -sslcert and -sslkey for HTTPS"`
-		Pprof          string        `flag:"pprof,address to serve pprof data"`
-		Cert           string        `flag:"sslcert,path to certificate file (PEM format)"`
-		Key            string        `flag:"sslkey,path to certificate file (PEM format)"`
-		Cache          string        `flag:"cache,address of memcached, disabled if empty"`
-		Blocklist      string        `flag:"blocklist,file with url prefixes to block, one per line"`
-		WithDimensions bool          `flag:"withDimensions,return image dimensions if possible (extra request to fetch image)"`
-		Timeout        time.Duration `flag:"timeout,timeout for remote i/o"`
-		GoogleMapsKey  string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
-		VideoDomains   string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
-		ImageProxyURL  string        `flag:"image.proxy.url,url to proxy http:// image urls through"`
-		ImageProxyKey  string        `flag:"image.proxy.secret,secret to generate sha1 HMAC signatures"`
-		MaxResults     int           `flag:"max,maximum number of results to get for single request"`
-		Ping           bool          `flag:"ping,respond with 200 OK on /ping path (for health checks)"`
+		Listen          string        `flag:"listen,address to listen, set both -sslcert and -sslkey for HTTPS"`
+		Pprof           string        `flag:"pprof,address to serve pprof data"`
+		Cert            string        `flag:"sslcert,path to certificate file (PEM format)"`
+		Key             string        `flag:"sslkey,path to certificate file (PEM format)"`
+		Cache           string        `flag:"cache,address of memcached, disabled if empty"`
+		Blocklist       string        `flag:"blocklist,file with url prefixes to block, one per line"`
+		WithDimensions  bool          `flag:"withDimensions,return image dimensions if possible (extra request to fetch image)"`
+		Timeout         time.Duration `flag:"timeout,timeout for remote i/o"`
+		GoogleMapsKey   string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
+		VideoDomains    string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
+		ImageProxyURL   string        `flag:"image.proxy.url,url to proxy http:// image urls through"`
+		ImageProxyKey   string        `flag:"image.proxy.secret,secret to generate sha1 HMAC signatures"`
+		MaxResults      int           `flag:"max,maximum number of results to get for single request"`
+		Ping            bool          `flag:"ping,respond with 200 OK on /ping path (for health checks)"`
+		OembedProviders string        `flag:"oembedProviders,custom oembed providers list in json format"`
 	}{
 		Listen:     "localhost:8080",
 		Pprof:      "localhost:6060",
@@ -83,6 +85,17 @@ func main() {
 		unfurlist.WithImageDimensions(args.WithDimensions),
 		unfurlist.WithBlocklistTitles(titleBlocklist),
 		unfurlist.WithMaxResults(args.MaxResults),
+	}
+	if args.OembedProviders != "" {
+		data, err := os.ReadFile(args.OembedProviders)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fn, err := oembed.Providers(bytes.NewReader(data))
+		if err != nil {
+			log.Fatal(err)
+		}
+		configs = append(configs, unfurlist.WithOembedLookupFunc(fn))
 	}
 	if args.Blocklist != "" {
 		prefixes, err := readBlocklist(args.Blocklist)

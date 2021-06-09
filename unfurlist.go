@@ -210,11 +210,13 @@ func New(conf ...ConfFunc) http.Handler {
 	if h.Log == nil {
 		h.Log = log.New(ioutil.Discard, "", 0)
 	}
-	fn, err := oembed.Providers(bytes.NewReader(providersData))
-	if err != nil {
-		panic(err)
+	if h.oembedLookupFunc == nil {
+		fn, err := oembed.Providers(bytes.NewReader(providersData))
+		if err != nil {
+			panic(err)
+		}
+		h.oembedLookupFunc = fn
 	}
-	h.oembedLookupFunc = fn
 	return h
 }
 

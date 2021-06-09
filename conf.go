@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/artyom/oembed"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
@@ -114,6 +115,17 @@ func WithMaxResults(n int) ConfFunc {
 	return func(h *unfurlHandler) *unfurlHandler {
 		if n > 0 {
 			h.maxResults = n
+		}
+		return h
+	}
+}
+
+// WithOembedLookupFunc configures unfurl handler to use custom
+// oembed.LookupFunc for oembed lookups.
+func WithOembedLookupFunc(fn oembed.LookupFunc) ConfFunc {
+	return func(h *unfurlHandler) *unfurlHandler {
+		if fn != nil {
+			h.oembedLookupFunc = fn
 		}
 		return h
 	}
