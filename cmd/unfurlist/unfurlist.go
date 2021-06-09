@@ -45,7 +45,6 @@ func main() {
 		OembedProviders string        `flag:"oembedProviders,custom oembed providers list in json format"`
 	}{
 		Listen:     "localhost:8080",
-		Pprof:      "localhost:6060",
 		Timeout:    30 * time.Second,
 		MaxResults: unfurlist.DefaultMaxResults,
 	}
