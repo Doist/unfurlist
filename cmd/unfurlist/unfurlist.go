@@ -209,6 +209,7 @@ var loginPages map[string]struct{}
 func init() {
 	pages := []string{
 		"https://bitbucket.org/account/signin/",
+		"https://outlook.live.com/owa/",
 	}
 	loginPages = make(map[string]struct{}, len(pages))
 	for _, u := range pages {
