@@ -1,7 +1,6 @@
 package unfurlist
 
 import (
-	"crypto/sha1"
 	"net/http"
 	"strings"
 
@@ -86,25 +85,6 @@ func WithImageDimensions(enable bool) ConfFunc {
 func WithFetchers(fetchers ...FetchFunc) ConfFunc {
 	return func(h *unfurlHandler) *unfurlHandler {
 		h.fetchers = fetchers
-		return h
-	}
-}
-
-// WithImageProxy configures unfurl handler to pass plain http image urls
-// through image proxy located at proxyURL. The following query parameters are
-// added to the proxyURL: "u" specifies original image url, "h" specifies sha1
-// HMAC signature (only if secret is not empty). It is expected that proxyURL
-// does not have query string; it is used "as is", query arguments are appended
-// as "?u=...&h=..." string.
-//
-// See https://github.com/artyom/image-proxy for proxy implementation example.
-func WithImageProxy(proxyURL, secret string) ConfFunc {
-	return func(h *unfurlHandler) *unfurlHandler {
-		h.imageProxyURL = proxyURL
-		if secret != "" {
-			b := sha1.Sum([]byte(secret))
-			h.imageProxyKey = b[:]
-		}
 		return h
 	}
 }

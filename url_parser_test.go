@@ -80,7 +80,7 @@ func TestValidURL(t *testing.T) {
 		u   string
 		res bool
 	}{
-		{"http://example.com/path?multi+word+escaped+query", true},
+		{"https://example.com/path?multi+word+escaped+query", true},
 		{"https://example.com/path?unescaped query", false},
 		{"ftp://example.com/unsupported/scheme", false},
 		{"", false},

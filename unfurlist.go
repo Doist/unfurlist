@@ -63,10 +63,8 @@ import (
 	"bytes"
 	"compress/zlib"
 	"context"
-	"crypto/hmac"
 	"crypto/sha1"
 	_ "embed"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -112,9 +110,6 @@ type unfurlHandler struct {
 	pmap *prefixMap // built from BlocklistPrefix
 
 	maxResults int // max number of urls to process
-
-	imageProxyURL string
-	imageProxyKey []byte
 
 	fetchers []FetchFunc
 	inFlight singleflight.Group // in-flight urls processed
@@ -411,16 +406,6 @@ hasMatch:
 	default:
 		h.Log.Printf("cannot get absolute image url for %q: %v", result.Image, err)
 		result.Image, result.ImageWidth, result.ImageHeight = "", 0, 0
-	}
-	if h.imageProxyURL != "" && strings.HasPrefix(result.Image, "http://") {
-		vals := make(url.Values)
-		vals.Set("u", result.Image)
-		if h.imageProxyKey != nil {
-			mac := hmac.New(sha1.New, h.imageProxyKey)
-			mac.Write([]byte(result.Image))
-			vals.Set("h", base64.RawURLEncoding.EncodeToString(mac.Sum(nil)))
-		}
-		result.Image = h.imageProxyURL + "?" + vals.Encode()
 	}
 
 	if mc := h.Cache; mc != nil && !result.Empty() {

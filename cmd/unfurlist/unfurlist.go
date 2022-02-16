@@ -38,8 +38,6 @@ func main() {
 		Timeout         time.Duration `flag:"timeout,timeout for remote i/o"`
 		GoogleMapsKey   string        `flag:"googlemapskey,Google Static Maps API key to generate map previews"`
 		VideoDomains    string        `flag:"videoDomains,comma-separated list of domains that host video+thumbnails"`
-		ImageProxyURL   string        `flag:"image.proxy.url,url to proxy http:// image urls through"`
-		ImageProxyKey   string        `flag:"image.proxy.secret,secret to generate sha1 HMAC signatures"`
 		MaxResults      int           `flag:"max,maximum number of results to get for single request"`
 		Ping            bool          `flag:"ping,respond with 200 OK on /ping path (for health checks)"`
 		OembedProviders string        `flag:"oembedProviders,custom oembed providers list in json format"`
@@ -48,6 +46,9 @@ func main() {
 		Timeout:    30 * time.Second,
 		MaxResults: unfurlist.DefaultMaxResults,
 	}
+	var discard string
+	flag.StringVar(&discard, "image.proxy.url", "", "DEPRECATED and unused")
+	flag.StringVar(&discard, "image.proxy.secret", "", "DEPRECATED and unused")
 	flag.StringVar(&args.Blocklist, "blacklist", args.Blocklist, "DEPRECATED: use -blocklist instead")
 	autoflags.Define(&args)
 	flag.Parse()
@@ -107,10 +108,7 @@ func main() {
 		log.Print("Enable cache at ", args.Cache)
 		configs = append(configs, unfurlist.WithMemcache(memcache.New(args.Cache)))
 	}
-	if args.ImageProxyURL != "" {
-		configs = append(configs,
-			unfurlist.WithImageProxy(args.ImageProxyURL, args.ImageProxyKey))
-	}
+
 	var ff []unfurlist.FetchFunc
 	if args.GoogleMapsKey != "" {
 		ff = append(ff, unfurlist.GoogleMapsFetcher(args.GoogleMapsKey))

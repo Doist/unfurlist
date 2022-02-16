@@ -21,7 +21,7 @@ func absoluteImageURL(originURL, imageURL string) (string, error) {
 	if imageURL == "" {
 		return "", errEmptyImageURL
 	}
-	if strings.HasPrefix(imageURL, "http") {
+	if strings.HasPrefix(imageURL, "https") {
 		return imageURL, nil
 	}
 	iu, err := url.Parse(imageURL)
@@ -29,7 +29,7 @@ func absoluteImageURL(originURL, imageURL string) (string, error) {
 		return "", err
 	}
 	switch iu.Scheme {
-	case "http", "https", "":
+	case "https", "":
 	default:
 		return "", fmt.Errorf("unsupported url scheme %q", iu.Scheme)
 	}
