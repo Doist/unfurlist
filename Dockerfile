@@ -1,4 +1,5 @@
-FROM golang:alpine AS builder
+FROM public.ecr.aws/docker/library/golang:alpine AS builder
+RUN apk add git
 WORKDIR /app
 ENV GOPROXY=https://proxy.golang.org CGO_ENABLED=0
 COPY go.mod go.sum ./
