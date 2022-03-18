@@ -288,7 +288,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // processURL call
 func (h *unfurlHandler) processURLidx(ctx context.Context, i int, link string) *unfurlResult {
 	defer h.inFlight.Forget(link)
-	v, _, shared := h.inFlight.Do(link, func() (interface{}, error) { return h.processURL(ctx, link), nil })
+	v, _, shared := h.inFlight.Do(link, func() (any, error) { return h.processURL(ctx, link), nil })
 	res, ok := v.(*unfurlResult)
 	if !ok {
 		panic("got unexpected type from singleflight.Do")

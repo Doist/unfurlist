@@ -124,7 +124,7 @@ func WithLogger(l Logger) ConfFunc {
 // Logger describes set of methods used by unfurl handler for logging; standard
 // lib *log.Logger implements this interface.
 type Logger interface {
-	Print(v ...interface{})
-	Printf(format string, v ...interface{})
-	Println(v ...interface{})
+	Print(v ...any)
+	Printf(format string, v ...any)
+	Println(v ...any)
 }
