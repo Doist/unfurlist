@@ -34,7 +34,7 @@ jobs:
       run: |
         docker build . --tag image
     - name: Log into registry
-      run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+      run: echo "${{ secrets.GH_PACKAGES_TOKEN }}" | docker login ghcr.io -u ${GITHUB_ACTOR} --password-stdin
     - name: Push image
       run: |
         set -u
