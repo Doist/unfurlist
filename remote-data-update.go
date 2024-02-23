@@ -6,7 +6,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -66,7 +66,7 @@ func main() {
 		if r.StatusCode >= 400 {
 			log.Fatal(v, r.Status)
 		}
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Fatal(v, err)
 		}

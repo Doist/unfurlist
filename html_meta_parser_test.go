@@ -1,7 +1,7 @@
 package unfurlist
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -12,7 +12,7 @@ func TestExtractData_explicitCharset(t *testing.T) {
 	// parameter from Content-Type header
 	//
 	// [1]: https://html.spec.whatwg.org/multipage/syntax.html#determining-the-character-encoding
-	data, err := ioutil.ReadFile("testdata/no-charset-in-first-1024bytes")
+	data, err := os.ReadFile("testdata/no-charset-in-first-1024bytes")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestExtractData_explicitCharset(t *testing.T) {
 }
 
 func TestExtractData_multibyte1(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/korean")
+	data, err := os.ReadFile("testdata/korean")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestExtractData_multibyte1(t *testing.T) {
 }
 
 func TestExtractData_multibyte2(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/japanese")
+	data, err := os.ReadFile("testdata/japanese")
 	if err != nil {
 		t.Fatal(err)
 	}

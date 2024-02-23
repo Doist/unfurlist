@@ -11,23 +11,23 @@
 //
 // Example:
 //
-//     ?content=Check+this+out+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+//	?content=Check+this+out+https://www.youtube.com/watch?v=dQw4w9WgXcQ
 //
 // Will return:
 //
-//     Type: "application/json"
+//	    Type: "application/json"
 //
-//	[
-//		{
-//			"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-//			"title": "Rick Astley - Never Gonna Give You Up (Video)",
-//			"url_type": "video.other",
-//			"description": "Rick Astley - Never Gonna Give You Up...",
-//			"site_name": "YouTube",
-//			"favicon": "https://www.youtube.com/yts/img/favicon_32-vflOogEID.png",
-//			"image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
-//		}
-//	]
+//		[
+//			{
+//				"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+//				"title": "Rick Astley - Never Gonna Give You Up (Video)",
+//				"url_type": "video.other",
+//				"description": "Rick Astley - Never Gonna Give You Up...",
+//				"site_name": "YouTube",
+//				"favicon": "https://www.youtube.com/yts/img/favicon_32-vflOogEID.png",
+//				"image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
+//			}
+//		]
 //
 // If handler was configured with FetchImageSize=true in its config, each hash
 // may have additional fields `image_width` and `image_height` specifying
@@ -40,7 +40,7 @@
 // provided content is parsed as markdown formatted text and links are extracted
 // in context-aware mode — i.e. preformatted text blocks are skipped.
 //
-// Security
+// # Security
 //
 // Care should be taken when running this inside internal network since it may
 // disclose internal endpoints. It is a good idea to run the service on
@@ -69,7 +69,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -203,7 +202,7 @@ func New(conf ...ConfFunc) http.Handler {
 		h.MaxBodyChunkSize = defaultMaxBodyChunkSize
 	}
 	if h.Log == nil {
-		h.Log = log.New(ioutil.Discard, "", 0)
+		h.Log = log.New(io.Discard, "", 0)
 	}
 	if h.oembedLookupFunc == nil {
 		fn, err := oembed.Providers(bytes.NewReader(providersData))
@@ -482,7 +481,7 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 			return nil, err
 		}
 	}
-	head, err := ioutil.ReadAll(io.LimitReader(resp.Body, h.MaxBodyChunkSize))
+	head, err := io.ReadAll(io.LimitReader(resp.Body, h.MaxBodyChunkSize))
 	if err != nil {
 		return nil, err
 	}

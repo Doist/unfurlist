@@ -16,9 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-    - uses: actions/setup-go@v1
+    - uses: actions/setup-go@v5
       with:
-        go-version: '1.18.x'
+        go-version: 'stable'
     - uses: actions/checkout@v4
     - name: Get dependencies
       run: go mod download
