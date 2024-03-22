@@ -1,0 +1,17 @@
+name: GHCR automatic clean up
+
+on: workflow_dispatch
+
+
+jobs:
+  ghcr-cleanup-job:
+      name: GHCR clean up
+      runs-on: ubuntu-latest
+      steps:
+          - name: GHCR scan and clean up
+            uses: Doist/actions/ghcr-cleanup-action/action.yml@main
+            with:
+                package_name: unfurlist
+                gh_auth_token: ${{ secrets.GH_PACKAGES_TOKEN }}
+                keep_last_number: '2'
+                dry_run: true
