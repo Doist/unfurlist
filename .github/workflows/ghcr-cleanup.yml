@@ -16,7 +16,7 @@ jobs:
           - name: GHCR scan and clean up
             uses: ./.doist/actions/ghcr-cleanup-action
             with:
-                package_name: unfurlist
-                gh_auth_token: ${{ secrets.GH_PACKAGES_TOKEN }}
-                keep_last_number: '2'
-                dry_run: true
+                package-name: unfurlist
+                gh_auth-token: ${{ secrets.GH_PACKAGES_TOKEN }}
+                keep-last-number: '2'
+                dry-run: true
