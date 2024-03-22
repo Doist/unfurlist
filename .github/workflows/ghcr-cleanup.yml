@@ -2,14 +2,19 @@ name: GHCR automatic clean up
 
 on: workflow_dispatch
 
-
 jobs:
   ghcr-cleanup-job:
       name: GHCR clean up
       runs-on: ubuntu-latest
       steps:
+          - name: Checkout actions repository
+            uses: actions/checkout@v2
+            with:
+                repository: Doist/actions
+                path: ./.doist/actions
+                token: ${{ secrets.GH_REPO_TOKEN }}
           - name: GHCR scan and clean up
-            uses: Doist/actions/ghcr-cleanup-action/action.yml@main
+            uses: ./.doist/actions/ghcr-cleanup-action/action.yml@main
             with:
                 package_name: unfurlist
                 gh_auth_token: ${{ secrets.GH_PACKAGES_TOKEN }}
