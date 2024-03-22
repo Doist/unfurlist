@@ -14,7 +14,7 @@ jobs:
                 path: ./.doist/actions
                 token: ${{ secrets.GH_REPO_TOKEN }}
           - name: GHCR scan and clean up
-            uses: ./.doist/actions/ghcr-cleanup-action/action.yml@main
+            uses: ./.doist/actions/ghcr-cleanup-action/action.yml
             with:
                 package_name: unfurlist
                 gh_auth_token: ${{ secrets.GH_PACKAGES_TOKEN }}
