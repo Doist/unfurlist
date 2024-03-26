@@ -18,5 +18,5 @@ jobs:
             with:
                 package-name: unfurlist
                 gh-auth-token: ${{ secrets.GH_PACKAGES_TOKEN }}
-                keep-last-number: '2'
-                dry-run: true
+                keep-last-number: '5'
+                dry-run: false
