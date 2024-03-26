@@ -7,9 +7,16 @@ jobs:
       name: GHCR clean up
       runs-on: ubuntu-latest
       steps:
-          - uses: Doist/actions/ghcr-cleanup-action@main
+          - name: Checkout actions repository
+            uses: actions/checkout@v4
             with:
-              package-name: unfurlist
-              gh-auth-token: ${{ secrets.GH_PACKAGES_TOKEN }}
-              keep-last-number: '2'
-              dry-run: true
+                repository: Doist/actions
+                path: ./.doist/actions
+                token: ${{ secrets.GH_REPO_TOKEN }}
+          - name: GHCR scan and clean up
+            uses: ./.doist/actions/ghcr-cleanup-action
+            with:
+                package-name: unfurlist
+                gh-auth-token: ${{ secrets.GH_PACKAGES_TOKEN }}
+                keep-last-number: '2'
+                dry-run: true
