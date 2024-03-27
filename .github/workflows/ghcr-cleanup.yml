@@ -11,6 +11,7 @@ jobs:
             uses: actions/checkout@v4
             with:
                 repository: Doist/actions
+                ref: lfacchinelli/delete-org-ghcr
                 path: ./.doist/actions
                 token: ${{ secrets.GH_REPO_TOKEN }}
           - name: GHCR scan and clean up
