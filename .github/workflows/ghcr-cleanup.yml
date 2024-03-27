@@ -17,6 +17,6 @@ jobs:
             uses: ./.doist/actions/ghcr-cleanup-action
             with:
                 package-name: unfurlist
-                gh-auth-token: ${{ secrets.GH_PACKAGES_TOKEN }}
+                gh-auth-token: ${{ secrets.GITHUB_TOKEN }}
                 keep-last-number: '5'
                 dry-run: false
