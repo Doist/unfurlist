@@ -1,6 +1,8 @@
 name: GHCR automatic clean up
 
-on: workflow_dispatch
+on: 
+  schedule:
+    - cron: 00 05 1 * * # Runs every 1st of each month at 05:00 UTC 
 
 jobs:
   ghcr-cleanup-job:
