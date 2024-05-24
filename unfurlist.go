@@ -472,8 +472,9 @@ func (h *unfurlHandler) fetchData(ctx context.Context, URL string) (*pageChunk, 
 		return &pageChunk{url: resp.Request.URL}, errors.New("bad status: " + resp.Status)
 	}
 	if resp.Header.Get("Content-Encoding") == "deflate" &&
-		strings.HasSuffix(resp.Request.Host, "twitter.com") {
-		// twitter sends unsolicited deflate-encoded responses
+		(strings.HasSuffix(resp.Request.Host, "twitter.com") ||
+			strings.HasSuffix(resp.Request.Host, "x.com")) {
+		// twitter/X sends unsolicited deflate-encoded responses
 		// violating RFC; workaround this.
 		// See https://golang.org/issues/18779 for background
 		var err error
