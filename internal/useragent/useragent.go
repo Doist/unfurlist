@@ -5,10 +5,10 @@
 //
 // Basic usage:
 //
-// 	client := &http.Client{
-// 		Transport: useragent.Set(http.DefaultTransport, "MyRobot/1.0"),
-// 	}
-// 	resp, err := client.Get("https://...")
+//	client := &http.Client{
+//		Transport: useragent.Set(http.DefaultTransport, "MyRobot/1.0"),
+//	}
+//	resp, err := client.Get("https://...")
 package useragent
 
 import (
@@ -49,7 +49,8 @@ func (t uaT) RoundTrip(r *http.Request) (*http.Response, error) {
 		r2.Header[k] = v
 	}
 	r2.Header.Set("User-Agent", t.userAgent)
-	if r.URL.Host == "twitter.com" || strings.HasSuffix(r.URL.Host, ".twitter.com") {
+	if r.URL.Host == "twitter.com" || strings.HasSuffix(r.URL.Host, ".twitter.com") ||
+		r.URL.Host == "x.com" || strings.HasSuffix(r.URL.Host, ".x.com") {
 		r2.Header.Set("User-Agent", "DiscourseBot/1.0")
 	}
 	return t.Transport.RoundTrip(r2)
