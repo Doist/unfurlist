@@ -17,7 +17,8 @@ import (
 
 func basicParseHTML(chunk *pageChunk) *unfurlResult {
 	result := new(unfurlResult)
-	result.Type = http.DetectContentType(chunk.data)
+	sniffedContentType := http.DetectContentType(chunk.data)
+	result.Type = sniffedContentType
 	switch {
 	case strings.HasPrefix(result.Type, "image/"):
 		result.Type = "image"
@@ -26,7 +27,14 @@ func basicParseHTML(chunk *pageChunk) *unfurlResult {
 		result.Type = "website"
 		// pass Content-Type from response headers as it may have
 		// charset definition like "text/html; charset=windows-1251"
-		if title, desc, err := extractData(chunk.data, chunk.ct); err == nil {
+		ct := chunk.ct
+		// There are cases where Content-Type header is "text/html", but http.DetectContentType
+		// narrows it down to a more specific "text/html; charset=utf-8". In such a case use
+		// the latter.
+		if !strings.Contains(ct, "charset=") && strings.Contains(sniffedContentType, "charset=") {
+			ct = sniffedContentType
+		}
+		if title, desc, err := extractData(chunk.data, ct); err == nil {
 			result.Title = title
 			result.Description = desc
 		}
