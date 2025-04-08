@@ -1,12 +1,12 @@
 package unfurlist
 
 import (
+	"iter"
 	"net/url"
 	"regexp"
 	"strings"
 
-	"github.com/gomarkdown/markdown/ast"
-	"github.com/gomarkdown/markdown/parser"
+	"rsc.io/markdown"
 )
 
 // reUrls matches sequence of characters described by RFC 3986 having http:// or
@@ -122,26 +122,81 @@ func validURL(s string) bool {
 	return true
 }
 
+var parser = markdown.Parser{AutoLinkText: true}
+
 func parseMarkdownURLs(content string, maxItems int) []string {
-	doc := parser.New().Parse([]byte(content))
-	var urls []string
-	walkFn := func(node ast.Node, entering bool) ast.WalkStatus {
-		if maxItems >= 0 && len(urls) == maxItems {
-			return ast.Terminate
+	var out []string
+	for link := range docLinks(parser.Parse(content)) {
+		if !validURL(link.URL) {
+			continue
 		}
-		if !entering {
-			return ast.GoToNext
+		out = append(out, link.URL)
+		if maxItems != 0 && len(out) == maxItems {
+			return out
 		}
-		switch n := node.(type) {
-		case *ast.Link:
-			if s := string(n.Destination); validURL(s) {
-				urls = append(urls, s)
-			}
-		case *ast.Code, *ast.CodeBlock:
-			return ast.SkipChildren
-		}
-		return ast.GoToNext
 	}
-	_ = ast.Walk(doc, ast.NodeVisitorFunc(walkFn))
-	return urls
+	return out
+}
+
+func docLinks(doc *markdown.Document) iter.Seq[*markdown.Link] {
+	var walkLinks func(markdown.Inlines, func(*markdown.Link) bool) bool
+	walkLinks = func(inlines markdown.Inlines, yield func(*markdown.Link) bool) bool {
+		for _, inl := range inlines {
+			switch ent := inl.(type) {
+			case *markdown.Strong:
+				if !walkLinks(ent.Inner, yield) {
+					return false
+				}
+			case *markdown.Emph:
+				if !walkLinks(ent.Inner, yield) {
+					return false
+				}
+			case *markdown.Link:
+				if !yield(ent) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	var walkBlocks func(markdown.Block, func(*markdown.Link) bool) bool
+	walkBlocks = func(block markdown.Block, yield func(*markdown.Link) bool) bool {
+		switch bl := block.(type) {
+		case *markdown.Item:
+			for _, b := range bl.Blocks {
+				if !walkBlocks(b, yield) {
+					return false
+				}
+			}
+		case *markdown.List:
+			for _, b := range bl.Items {
+				if !walkBlocks(b, yield) {
+					return false
+				}
+			}
+		case *markdown.Paragraph:
+			if !walkLinks(bl.Text.Inline, yield) {
+				return false
+			}
+		case *markdown.Quote:
+			for _, b := range bl.Blocks {
+				if !walkBlocks(b, yield) {
+					return false
+				}
+			}
+		case *markdown.Text:
+			if !walkLinks(bl.Inline, yield) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return func(yield func(*markdown.Link) bool) {
+		for _, b := range doc.Blocks {
+			if !walkBlocks(b, yield) {
+				return
+			}
+		}
+	}
 }
