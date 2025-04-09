@@ -52,7 +52,7 @@ func TestBasicURLs(t *testing.T) {
 	if len(got) != len(want) {
 		t.Errorf("Length not the same got: %d != want: %d", len(got), len(want))
 	} else {
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if got[i] != want[i] {
 				t.Errorf("%q != %s", got, want)
 			}
@@ -67,7 +67,7 @@ func TestBugURL(t *testing.T) {
 	if len(got) != len(want) {
 		t.Errorf("Length not the same got: %d != want: %d", len(got), len(want))
 	} else {
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if got[i] != want[i] {
 				t.Errorf("%q != %s", got, want)
 			}
@@ -128,7 +128,7 @@ Another paragraph with implicit link http://example.com/5.
 	`
 	b.ReportAllocs()
 	b.SetBytes(int64(len(text)))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		escape = parseMarkdownURLs(text, 10)
 	}
 }

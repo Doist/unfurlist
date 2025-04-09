@@ -90,7 +90,7 @@ func TestExtractData_full(t *testing.T) {
 }
 
 func BenchmarkExtractData(b *testing.B) {
-	for j := 0; j < b.N; j++ {
+	for b.Loop() {
 		for i, c := range titleTestCases {
 			title, _, err := extractData([]byte(c.body), "text/html")
 			if err != nil {

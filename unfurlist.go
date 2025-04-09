@@ -61,18 +61,19 @@ package unfurlist
 
 import (
 	"bytes"
+	"cmp"
 	"compress/zlib"
 	"context"
 	"crypto/sha1"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -173,12 +174,6 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	}
 }
 
-type unfurlResults []*unfurlResult
-
-func (rs unfurlResults) Len() int           { return len(rs) }
-func (rs unfurlResults) Less(i, j int) bool { return rs[i].idx < rs[j].idx }
-func (rs unfurlResults) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
-
 // ConfFunc is used to configure new unfurl handler; such functions should be
 // used as arguments to New function
 type ConfFunc func(*unfurlHandler) *unfurlHandler
@@ -241,7 +236,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jobResults := make(chan *unfurlResult, 1)
-	results := make(unfurlResults, 0, len(urls))
+	results := make([]*unfurlResult, 0, len(urls))
 	ctx := r.Context()
 
 	for i, r := range urls {
@@ -252,7 +247,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}(ctx, i, r, jobResults)
 	}
-	for i := 0; i < len(urls); i++ {
+	for range urls {
 		select {
 		case <-ctx.Done():
 			return
@@ -261,7 +256,7 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sort.Sort(results)
+	slices.SortFunc(results, func(a, b *unfurlResult) int { return cmp.Compare(a.idx, b.idx) })
 	for _, r := range results {
 		r.normalize()
 	}
@@ -535,7 +530,8 @@ probeDefaultIcon:
 // mcKey returns string of hex representation of sha1 sum of string provided.
 // Used to get safe keys to use with memcached
 func mcKey(s string) string {
-	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
+	sum := sha1.Sum([]byte(s))
+	return hex.EncodeToString(sum[:])
 }
 
 func blocklisted(blocklilst []string, title string) bool {
