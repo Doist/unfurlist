@@ -72,7 +72,7 @@ func TestExtractData(t *testing.T) {
 func TestExtractData_full(t *testing.T) {
 	body := `<html>
 	<meta name="keywords" content="test">
-	<meta name="description" content="hello page">
+	<meta name="description" content="hello page"/>
 	<meta name="description" content="ignored">
 	<title>Hello</title>
 	</html>
