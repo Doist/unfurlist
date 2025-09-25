@@ -29,7 +29,7 @@ func openGraphParseHTML(chunk *pageChunk) *unfurlResult {
 	}
 	og := opengraph.NewOpenGraph()
 	err = og.ProcessHTML(bodyReader)
-	if err != nil || og.Title == "" {
+	if err != nil {
 		return nil
 	}
 	res := &unfurlResult{

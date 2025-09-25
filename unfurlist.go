@@ -365,7 +365,9 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	if res := openGraphParseHTML(chunk); res != nil {
 		if !blocklisted(h.titleBlocklist, res.Title) {
 			result.Merge(res)
-			goto hasMatch
+			if result.Type != "" && result.Title != "" {
+				goto hasMatch
+			}
 		}
 	}
 	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
