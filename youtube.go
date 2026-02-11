@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/artyom/oembed"
@@ -19,7 +18,7 @@ import (
 func youtubeFetcher(ctx context.Context, client *http.Client, u *url.URL) (*Metadata, bool) {
 	switch {
 	case u.Host == "youtu.be" && len(u.Path) > 2:
-	case u.Host == "www.youtube.com" && u.Path == "/watch" && strings.HasPrefix(u.RawQuery, "v="):
+	case u.Host == "www.youtube.com" && u.Path == "/watch" && u.Query().Has("v"):
 	default:
 		return nil, false
 	}
