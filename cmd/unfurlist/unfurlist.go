@@ -70,7 +70,7 @@ func main() {
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-		}, "unfurlist (https://github.com/Doist/unfurlist)"),
+		}, "Mozilla/5.0 (compatible; Unfurlist/1.0; +https://github.com/Doist/unfurlist)"),
 	}
 	logFlags := log.LstdFlags
 	if os.Getenv("AWS_EXECUTION_ENV") != "" {
