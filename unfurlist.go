@@ -279,39 +279,53 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // processURLidx wraps processURL and adds provided index i to the result. It
 // also collapses multiple in-flight requests for the same url to a single
-// processURL call
+// processURL call.
+//
+// The singleflight key uses the normalized URL (tracking params stripped) so
+// that concurrent requests for the same page with different tracking variants
+// are deduplicated. The response URL is always set back to the caller's
+// original link.
 func (h *unfurlHandler) processURLidx(ctx context.Context, i int, link string) *unfurlResult {
-	defer h.inFlight.Forget(link)
-	v, _, shared := h.inFlight.Do(link, func() (any, error) { return h.processURL(ctx, link), nil })
+	normalized := normalizeURL(link)
+	defer h.inFlight.Forget(normalized)
+	v, _, shared := h.inFlight.Do(normalized, func() (any, error) { return h.processURL(ctx, link), nil })
 	res, ok := v.(*unfurlResult)
 	if !ok {
 		panic("got unexpected type from singleflight.Do")
 	}
-	if shared && (*res == unfurlResult{URL: link}) && ctx.Err() == nil {
+	if shared && (*res == unfurlResult{URL: normalized}) && ctx.Err() == nil {
 		// an *incomplete* shared result, e.g. if context in another goroutine
 		// that called processURL was canceled early, need to refetch
 		res = h.processURL(ctx, link)
 	}
 	res2 := *res // make a copy because we're going to modify it
 	res2.idx = i
+	res2.URL = link // restore caller's original URL (see processURL comment)
 	return &res2
 }
 
-// Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
-// If no match is found the result will be an object that just contains the URL
+// processURL fetches and parses metadata for a single URL.
+//
+// Internally, the URL is normalized (tracking query params stripped) for cache
+// lookups, fetching, and storage. This means the cached entry never contains
+// user-specific tracking parameters, avoiding leakage between callers. The
+// caller (processURLidx) is responsible for setting the response URL back to
+// the original link before returning to the client.
 func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResult {
-	result := &unfurlResult{URL: link}
-	if h.pmap != nil && h.pmap.Match(link) { // blocklisted
+	normalized := normalizeURL(link)
+	result := &unfurlResult{URL: normalized}
+	if h.pmap != nil && h.pmap.Match(normalized) { // blocklisted
 		h.Log.Printf("Blocklisted %q", link)
 		return result
 	}
 
 	if mc := h.Cache; mc != nil {
-		if it, err := mc.Get(mcKey(link)); err == nil {
+		if it, err := mc.Get(mcKey(normalized)); err == nil {
 			if b, err := snappy.Decode(nil, it.Value); err == nil {
 				var cached unfurlResult
 				if err = json.Unmarshal(b, &cached); err == nil {
 					h.Log.Printf("Cache hit for %q", link)
+					cached.URL = link // restore caller's original URL (cached entry stores normalized)
 					return &cached
 				}
 			}
@@ -324,13 +338,13 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	// url altogether. This can also somewhat help against sites redirecting to
 	// captchas/login pages when they see requests from non "home ISP"
 	// networks.
-	if endpoint, ok := h.oembedLookupFunc(result.URL); ok {
+	if endpoint, ok := h.oembedLookupFunc(normalized); ok {
 		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
 	}
-	chunk, err = h.fetchData(ctx, result.URL)
+	chunk, err = h.fetchData(ctx, normalized)
 	if err != nil {
 		if chunk != nil && strings.Contains(chunk.url.Host, "youtube.com") {
 			if meta, ok := youtubeFetcher(ctx, h.HTTPClient, chunk.url); ok && meta.Valid() {
@@ -407,7 +421,7 @@ hasMatch:
 	if mc := h.Cache; mc != nil && !result.Empty() {
 		if cdata, err := json.Marshal(result); err == nil {
 			h.Log.Printf("Cache update for %q", link)
-			mc.Set(&memcache.Item{Key: mcKey(link), Value: snappy.Encode(nil, cdata)})
+			mc.Set(&memcache.Item{Key: mcKey(normalized), Value: snappy.Encode(nil, cdata)})
 		}
 	}
 	return result

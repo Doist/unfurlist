@@ -9,6 +9,70 @@ import (
 	"rsc.io/markdown"
 )
 
+// trackingParams lists common analytics/tracking query parameters that do not
+// affect page content. Stripping these before fetching improves cache hit rates
+// and avoids behavioral differences some sites exhibit when tracking params are
+// present.
+// map[string]struct{} is used instead of a slice for O(1) lookup.
+var trackingParams = map[string]struct{}{
+	// UTM
+	"utm_source":   {},
+	"utm_medium":   {},
+	"utm_campaign": {},
+	"utm_term":     {},
+	"utm_content":  {},
+	// Platform click IDs
+	"fbclid":  {},
+	"gclid":   {},
+	"gclsrc":  {},
+	"msclkid": {},
+	"twclid":  {},
+	// IMDb-specific tracking
+	"ref_":    {},
+	"pf_rd_m": {},
+	"pf_rd_p": {},
+	"pf_rd_r": {},
+	"pf_rd_s": {},
+	"pf_rd_t": {},
+	"pf_rd_i": {},
+	// Miscellaneous
+	"si":      {},
+	"feature": {},
+	"_hsenc":  {},
+	"_hsmi":   {},
+	"mc_cid":  {},
+	"mc_eid":  {},
+}
+
+// normalizeURL strips known tracking query parameters from rawURL. If rawURL
+// is not a valid http/https URL or contains no tracking parameters, it is
+// returned unchanged.
+func normalizeURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return rawURL
+	}
+	if u.RawQuery == "" {
+		return rawURL
+	}
+	q := u.Query()
+	changed := false
+	for k := range q {
+		if _, ok := trackingParams[k]; ok {
+			q.Del(k)
+			changed = true
+		}
+	}
+	if !changed {
+		return rawURL
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
 // reUrls matches sequence of characters described by RFC 3986 having http:// or
 // https:// prefix. It actually allows superset of characters from RFC 3986,
 // allowing some most commonly used characters like {}, etc.

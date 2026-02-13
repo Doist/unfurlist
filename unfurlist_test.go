@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -181,6 +182,89 @@ func replayHandler(w http.ResponseWriter, r *http.Request) {
 	// avoid type auto-detecting of saved pages
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(d))
+}
+
+// TestNormalization_ResponseURLMatchesInput verifies that the response URL
+// always echoes the caller's original URL, even though internally we normalize
+// (strip tracking params) for caching and fetching.
+func TestNormalization_ResponseURLMatchesInput(t *testing.T) {
+	pp := newPipePool()
+	defer pp.Close()
+	go http.Serve(pp, http.HandlerFunc(replayHandler))
+	handler := New(WithHTTPClient(&http.Client{
+		Transport: &http.Transport{
+			Dial:    pp.Dial,
+			DialTLS: pp.Dial,
+		},
+	}))
+
+	// Request with tracking params appended to a known URL.
+	// The input URL must be query-escaped because it contains & which would
+	// otherwise be parsed as a separator in the test request's query string.
+	inputURL := "https://news.ycombinator.com/?utm_source=test&fbclid=abc123"
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/?content="+url.QueryEscape(inputURL), nil)
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d", w.Code)
+	}
+	var result []unfurlResult
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].URL != inputURL {
+		t.Errorf("response URL = %q, want caller's original %q", result[0].URL, inputURL)
+	}
+	if result[0].Title != "Hacker News" {
+		t.Errorf("unexpected title %q, tracking params may have broken fetch", result[0].Title)
+	}
+}
+
+// TestNormalization_DifferentTrackingParamsSameMetadata verifies that two
+// requests for the same page with different tracking params get identical
+// metadata but their own original URLs in the response.
+func TestNormalization_DifferentTrackingParamsSameMetadata(t *testing.T) {
+	pp := newPipePool()
+	defer pp.Close()
+	go http.Serve(pp, http.HandlerFunc(replayHandler))
+	handler := New(WithHTTPClient(&http.Client{
+		Transport: &http.Transport{
+			Dial:    pp.Dial,
+			DialTLS: pp.Dial,
+		},
+	}))
+
+	urls := []string{
+		"https://news.ycombinator.com/?utm_source=twitter",
+		"https://news.ycombinator.com/?fbclid=xyz789",
+	}
+
+	for _, inputURL := range urls {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/?content="+url.QueryEscape(inputURL), nil)
+		handler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("unexpected status for %q: %d", inputURL, w.Code)
+		}
+		var result []unfurlResult
+		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+			t.Fatalf("invalid JSON for %q: %v", inputURL, err)
+		}
+		if len(result) != 1 {
+			t.Fatalf("expected 1 result for %q, got %d", inputURL, len(result))
+		}
+		if result[0].URL != inputURL {
+			t.Errorf("response URL = %q, want %q", result[0].URL, inputURL)
+		}
+		if result[0].Title != "Hacker News" {
+			t.Errorf("unexpected title %q for %q", result[0].Title, inputURL)
+		}
+	}
 }
 
 // pipePool implements net.Listener interface and provides a Dial() func to dial
