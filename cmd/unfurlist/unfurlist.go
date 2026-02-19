@@ -78,6 +78,7 @@ func main() {
 	}
 	configs := []unfurlist.ConfFunc{
 		unfurlist.WithExtraHeaders(map[string]string{
+			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 			"Accept-Language": "en;q=1, *;q=0.5",
 		}),
 		unfurlist.WithLogger(log.New(os.Stderr, "", logFlags)),
