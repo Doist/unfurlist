@@ -184,87 +184,109 @@ func replayHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(d))
 }
 
-// TestNormalization_ResponseURLMatchesInput verifies that the response URL
-// always echoes the caller's original URL, even though internally we normalize
-// (strip tracking params) for caching and fetching.
-func TestNormalization_ResponseURLMatchesInput(t *testing.T) {
-	pp := newPipePool()
-	defer pp.Close()
-	go http.Serve(pp, http.HandlerFunc(replayHandler))
-	handler := New(WithHTTPClient(&http.Client{
-		Transport: &http.Transport{
-			Dial:    pp.Dial,
-			DialTLS: pp.Dial,
-		},
-	}))
-
-	// Request with tracking params appended to a known URL.
-	// The input URL must be query-escaped because it contains & which would
-	// otherwise be parsed as a separator in the test request's query string.
-	inputURL := "https://news.ycombinator.com/?utm_source=test&fbclid=abc123"
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/?content="+url.QueryEscape(inputURL), nil)
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("unexpected status: %d", w.Code)
-	}
-	var result []unfurlResult
-	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if len(result) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(result))
-	}
-	if result[0].URL != inputURL {
-		t.Errorf("response URL = %q, want caller's original %q", result[0].URL, inputURL)
-	}
-	if result[0].Title != "Hacker News" {
-		t.Errorf("unexpected title %q, tracking params may have broken fetch", result[0].Title)
-	}
-}
-
-// TestNormalization_DifferentTrackingParamsSameMetadata verifies that two
-// requests for the same page with different tracking params get identical
-// metadata but their own original URLs in the response.
-func TestNormalization_DifferentTrackingParamsSameMetadata(t *testing.T) {
-	pp := newPipePool()
-	defer pp.Close()
-	go http.Serve(pp, http.HandlerFunc(replayHandler))
-	handler := New(WithHTTPClient(&http.Client{
-		Transport: &http.Transport{
-			Dial:    pp.Dial,
-			DialTLS: pp.Dial,
-		},
-	}))
-
-	urls := []string{
-		"https://news.ycombinator.com/?utm_source=twitter",
-		"https://news.ycombinator.com/?fbclid=xyz789",
-	}
-
-	for _, inputURL := range urls {
-		w := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", "/?content="+url.QueryEscape(inputURL), nil)
-		handler.ServeHTTP(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Fatalf("unexpected status for %q: %d", inputURL, w.Code)
+func Test_withoutTrackingParams(t *testing.T) {
+	t.Run("sanity", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input string
+			want  string
+		}{
+			{
+				name:  "strips utm params",
+				input: "https://example.com/page?utm_source=twitter&utm_medium=social",
+				want:  "https://example.com/page",
+			},
+			{
+				name:  "preserves non-tracking params",
+				input: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+				want:  "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+			},
+			{
+				name:  "mixed tracking and real params",
+				input: "https://example.com/page?utm_source=twitter&id=42",
+				want:  "https://example.com/page?id=42",
+			},
+			{
+				name:  "no query string unchanged",
+				input: "https://www.imdb.com/title/tt1234567/",
+				want:  "https://www.imdb.com/title/tt1234567/",
+			},
+			{
+				name:  "all tracking params removed",
+				input: "https://example.com/page?utm_source=x&fbclid=y&gclid=z",
+				want:  "https://example.com/page",
+			},
+			{
+				name:  "strips imdb tracking params",
+				input: "https://www.imdb.com/title/tt1234567/?ref_=nv_sr_srsg_0&pf_rd_m=abc",
+				want:  "https://www.imdb.com/title/tt1234567/",
+			},
+			{
+				name:  "strips facebook click id preserves others",
+				input: "https://example.com/article?fbclid=abc123&page=2",
+				want:  "https://example.com/article?page=2",
+			},
+			{
+				name:  "non-http scheme unchanged",
+				input: "ftp://example.com/file?utm_source=x",
+				want:  "ftp://example.com/file?utm_source=x",
+			},
+			{
+				name:  "invalid url unchanged",
+				input: "not a url at all",
+				want:  "not a url at all",
+			},
 		}
-		var result []unfurlResult
-		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-			t.Fatalf("invalid JSON for %q: %v", inputURL, err)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := withoutTrackingParams(tt.input)
+				if got != tt.want {
+					t.Errorf("withoutTrackingParams(%q) = %q, want %q", tt.input, got, tt.want)
+				}
+			})
 		}
+	})
+	t.Run("different-tracking-same-metadata", func(t *testing.T) {
+		urls := []string{
+			"https://news.ycombinator.com/?utm_source=twitter",
+			"https://news.ycombinator.com/?fbclid=xyz789",
+		}
+		outputs := make([]unfurlResult, len(urls))
+		for i, inputURL := range urls {
+			result := doRequest("/?content="+url.QueryEscape(inputURL), t)
+			if len(result) != 1 {
+				t.Fatalf("expected 1 result for %q, got %d", inputURL, len(result))
+			}
+			outputs[i] = result[0]
+			if result[0].URL != inputURL {
+				t.Errorf("response URL = %q, want %q", result[0].URL, inputURL)
+			}
+			if result[0].Title != "Hacker News" {
+				t.Errorf("unexpected title %q for %q", result[0].Title, inputURL)
+			}
+		}
+		for i := range outputs {
+			outputs[i].URL = "" // remove the obviously different attribute
+		}
+		for i := 1; i < len(outputs); i++ {
+			if a, b := outputs[i-1], outputs[i]; a != b {
+				t.Fatalf("different results:\n%+v\n%+v", a, b)
+			}
+		}
+	})
+	t.Run("with-tracking-response-matches-original", func(t *testing.T) {
+		inputURL := "https://news.ycombinator.com/?utm_source=test&fbclid=abc123"
+		result := doRequest("/?content="+url.QueryEscape(inputURL), t)
 		if len(result) != 1 {
-			t.Fatalf("expected 1 result for %q, got %d", inputURL, len(result))
+			t.Fatalf("expected 1 result, got %d", len(result))
 		}
 		if result[0].URL != inputURL {
-			t.Errorf("response URL = %q, want %q", result[0].URL, inputURL)
+			t.Errorf("response URL = %q, want caller's original %q", result[0].URL, inputURL)
 		}
 		if result[0].Title != "Hacker News" {
-			t.Errorf("unexpected title %q for %q", result[0].Title, inputURL)
+			t.Errorf("unexpected title %q, tracking params may have broken fetch", result[0].Title)
 		}
-	}
+	})
 }
 
 // pipePool implements net.Listener interface and provides a Dial() func to dial

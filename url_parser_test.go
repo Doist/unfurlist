@@ -115,68 +115,6 @@ Another paragraph with implicit link http://example.com/5.
 	}
 }
 
-func TestNormalizeURL(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "strips utm params",
-			input: "https://example.com/page?utm_source=twitter&utm_medium=social",
-			want:  "https://example.com/page",
-		},
-		{
-			name:  "preserves non-tracking params",
-			input: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-			want:  "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-		},
-		{
-			name:  "mixed tracking and real params",
-			input: "https://example.com/page?utm_source=twitter&id=42",
-			want:  "https://example.com/page?id=42",
-		},
-		{
-			name:  "no query string unchanged",
-			input: "https://www.imdb.com/title/tt1234567/",
-			want:  "https://www.imdb.com/title/tt1234567/",
-		},
-		{
-			name:  "all tracking params removed",
-			input: "https://example.com/page?utm_source=x&fbclid=y&gclid=z",
-			want:  "https://example.com/page",
-		},
-		{
-			name:  "strips imdb tracking params",
-			input: "https://www.imdb.com/title/tt1234567/?ref_=nv_sr_srsg_0&pf_rd_m=abc",
-			want:  "https://www.imdb.com/title/tt1234567/",
-		},
-		{
-			name:  "strips facebook click id preserves others",
-			input: "https://example.com/article?fbclid=abc123&page=2",
-			want:  "https://example.com/article?page=2",
-		},
-		{
-			name:  "non-http scheme unchanged",
-			input: "ftp://example.com/file?utm_source=x",
-			want:  "ftp://example.com/file?utm_source=x",
-		},
-		{
-			name:  "invalid url unchanged",
-			input: "not a url at all",
-			want:  "not a url at all",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeURL(tt.input)
-			if got != tt.want {
-				t.Errorf("normalizeURL(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
 var escape []string
 
 func BenchmarkMarkdownURLs(b *testing.B) {

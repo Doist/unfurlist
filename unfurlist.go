@@ -241,8 +241,10 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for i, r := range urls {
 		go func(ctx context.Context, i int, link string, jobResults chan *unfurlResult) {
+			res := h.processURLidx(ctx, i, withoutTrackingParams(link))
+			res.URL = link
 			select {
-			case jobResults <- h.processURLidx(ctx, i, link):
+			case jobResults <- res:
 			case <-ctx.Done():
 			}
 		}(ctx, i, r, jobResults)
@@ -279,53 +281,39 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // processURLidx wraps processURL and adds provided index i to the result. It
 // also collapses multiple in-flight requests for the same url to a single
-// processURL call.
-//
-// The singleflight key uses the normalized URL (tracking params stripped) so
-// that concurrent requests for the same page with different tracking variants
-// are deduplicated. The response URL is always set back to the caller's
-// original link.
+// processURL call
 func (h *unfurlHandler) processURLidx(ctx context.Context, i int, link string) *unfurlResult {
-	normalized := normalizeURL(link)
-	defer h.inFlight.Forget(normalized)
-	v, _, shared := h.inFlight.Do(normalized, func() (any, error) { return h.processURL(ctx, link), nil })
+	defer h.inFlight.Forget(link)
+	v, _, shared := h.inFlight.Do(link, func() (any, error) { return h.processURL(ctx, link), nil })
 	res, ok := v.(*unfurlResult)
 	if !ok {
 		panic("got unexpected type from singleflight.Do")
 	}
-	if shared && (*res == unfurlResult{URL: normalized}) && ctx.Err() == nil {
+	if shared && (*res == unfurlResult{URL: link}) && ctx.Err() == nil {
 		// an *incomplete* shared result, e.g. if context in another goroutine
 		// that called processURL was canceled early, need to refetch
 		res = h.processURL(ctx, link)
 	}
 	res2 := *res // make a copy because we're going to modify it
 	res2.idx = i
-	res2.URL = link // restore caller's original URL (see processURL comment)
 	return &res2
 }
 
-// processURL fetches and parses metadata for a single URL.
-//
-// Internally, the URL is normalized (tracking query params stripped) for cache
-// lookups, fetching, and storage. This means the cached entry never contains
-// user-specific tracking parameters, avoiding leakage between callers. The
-// caller (processURLidx) is responsible for setting the response URL back to
-// the original link before returning to the client.
+// Processes the URL by first looking in cache, then trying oEmbed, OpenGraph
+// If no match is found the result will be an object that just contains the URL
 func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResult {
-	normalized := normalizeURL(link)
-	result := &unfurlResult{URL: normalized}
-	if h.pmap != nil && h.pmap.Match(normalized) { // blocklisted
+	result := &unfurlResult{URL: link}
+	if h.pmap != nil && h.pmap.Match(link) { // blocklisted
 		h.Log.Printf("Blocklisted %q", link)
 		return result
 	}
 
 	if mc := h.Cache; mc != nil {
-		if it, err := mc.Get(mcKey(normalized)); err == nil {
+		if it, err := mc.Get(mcKey(link)); err == nil {
 			if b, err := snappy.Decode(nil, it.Value); err == nil {
 				var cached unfurlResult
 				if err = json.Unmarshal(b, &cached); err == nil {
 					h.Log.Printf("Cache hit for %q", link)
-					cached.URL = link // restore caller's original URL (cached entry stores normalized)
 					return &cached
 				}
 			}
@@ -338,13 +326,13 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	// url altogether. This can also somewhat help against sites redirecting to
 	// captchas/login pages when they see requests from non "home ISP"
 	// networks.
-	if endpoint, ok := h.oembedLookupFunc(normalized); ok {
+	if endpoint, ok := h.oembedLookupFunc(result.URL); ok {
 		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
 	}
-	chunk, err = h.fetchData(ctx, normalized)
+	chunk, err = h.fetchData(ctx, result.URL)
 	if err != nil {
 		if chunk != nil && strings.Contains(chunk.url.Host, "youtube.com") {
 			if meta, ok := youtubeFetcher(ctx, h.HTTPClient, chunk.url); ok && meta.Valid() {
@@ -421,7 +409,7 @@ hasMatch:
 	if mc := h.Cache; mc != nil && !result.Empty() {
 		if cdata, err := json.Marshal(result); err == nil {
 			h.Log.Printf("Cache update for %q", link)
-			mc.Set(&memcache.Item{Key: mcKey(normalized), Value: snappy.Encode(nil, cdata)})
+			mc.Set(&memcache.Item{Key: mcKey(link), Value: snappy.Encode(nil, cdata)})
 		}
 	}
 	return result
@@ -541,6 +529,69 @@ probeDefaultIcon:
 		return u.String(), nil
 	}
 	return "", nil
+}
+
+// trackingParams lists common analytics/tracking query parameters that do not
+// affect page content. Stripping these before fetching improves cache hit rates
+// and avoids behavioral differences some sites exhibit when tracking params are
+// present.
+var trackingParams = map[string]struct{}{
+	// UTM
+	"utm_source":   {},
+	"utm_medium":   {},
+	"utm_campaign": {},
+	"utm_term":     {},
+	"utm_content":  {},
+	// Platform click IDs
+	"fbclid":  {},
+	"gclid":   {},
+	"gclsrc":  {},
+	"msclkid": {},
+	"twclid":  {},
+	// IMDb-specific tracking
+	"ref_":    {},
+	"pf_rd_m": {},
+	"pf_rd_p": {},
+	"pf_rd_r": {},
+	"pf_rd_s": {},
+	"pf_rd_t": {},
+	"pf_rd_i": {},
+	// Miscellaneous
+	"si":      {},
+	"feature": {},
+	"_hsenc":  {},
+	"_hsmi":   {},
+	"mc_cid":  {},
+	"mc_eid":  {},
+}
+
+// withoutTrackingParams strips known tracking query parameters from rawURL. If rawURL
+// is not a valid http/https URL or contains no tracking parameters, it is
+// returned unchanged.
+func withoutTrackingParams(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return rawURL
+	}
+	if u.RawQuery == "" {
+		return rawURL
+	}
+	q := u.Query()
+	var changed bool
+	for k := range q {
+		if _, ok := trackingParams[k]; ok {
+			q.Del(k)
+			changed = true
+		}
+	}
+	if !changed {
+		return rawURL
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // mcKey returns string of hex representation of sha1 sum of string provided.
