@@ -19,7 +19,7 @@ import (
 func youtubeFetcher(ctx context.Context, client *http.Client, u *url.URL) (*Metadata, bool) {
 	switch {
 	case u.Host == "youtu.be" && len(u.Path) > 2:
-	case u.Host == "www.youtube.com" && u.Path == "/watch" && strings.HasPrefix(u.RawQuery, "v="):
+	case u.Host == "www.youtube.com" && u.Path == "/watch" && (strings.HasPrefix(u.RawQuery, "v=") || strings.Contains(u.RawQuery, "&v=")):
 	default:
 		return nil, false
 	}
