@@ -241,8 +241,10 @@ func (h *unfurlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for i, r := range urls {
 		go func(ctx context.Context, i int, link string, jobResults chan *unfurlResult) {
+			res := h.processURLidx(ctx, i, withoutTrackingParams(link))
+			res.URL = link
 			select {
-			case jobResults <- h.processURLidx(ctx, i, link):
+			case jobResults <- res:
 			case <-ctx.Done():
 			}
 		}(ctx, i, r, jobResults)
@@ -527,6 +529,69 @@ probeDefaultIcon:
 		return u.String(), nil
 	}
 	return "", nil
+}
+
+// trackingParams lists common analytics/tracking query parameters that do not
+// affect page content. Stripping these before fetching improves cache hit rates
+// and avoids behavioral differences some sites exhibit when tracking params are
+// present.
+var trackingParams = map[string]struct{}{
+	// UTM
+	"utm_source":   {},
+	"utm_medium":   {},
+	"utm_campaign": {},
+	"utm_term":     {},
+	"utm_content":  {},
+	// Platform click IDs
+	"fbclid":  {},
+	"gclid":   {},
+	"gclsrc":  {},
+	"msclkid": {},
+	"twclid":  {},
+	// IMDb-specific tracking
+	"ref_":    {},
+	"pf_rd_m": {},
+	"pf_rd_p": {},
+	"pf_rd_r": {},
+	"pf_rd_s": {},
+	"pf_rd_t": {},
+	"pf_rd_i": {},
+	// Miscellaneous
+	"si":      {},
+	"feature": {},
+	"_hsenc":  {},
+	"_hsmi":   {},
+	"mc_cid":  {},
+	"mc_eid":  {},
+}
+
+// withoutTrackingParams strips known tracking query parameters from rawURL. If rawURL
+// is not a valid http/https URL or contains no tracking parameters, it is
+// returned unchanged.
+func withoutTrackingParams(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return rawURL
+	}
+	if u.RawQuery == "" {
+		return rawURL
+	}
+	q := u.Query()
+	var changed bool
+	for k := range q {
+		if _, ok := trackingParams[k]; ok {
+			q.Del(k)
+			changed = true
+		}
+	}
+	if !changed {
+		return rawURL
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // mcKey returns string of hex representation of sha1 sum of string provided.
