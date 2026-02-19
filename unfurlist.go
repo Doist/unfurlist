@@ -411,7 +411,7 @@ hasMatch:
 				// Cache failures briefly to avoid repeatedly hitting sites
 				// that block us. A short TTL ensures we retry eventually.
 				item.Expiration = 300 // 5 minutes
-				h.Log.Printf("Negative cache for %q", link)
+				h.Log.Printf("Empty result cache for %q", link)
 			} else {
 				h.Log.Printf("Cache update for %q", link)
 			}
