@@ -111,29 +111,34 @@ type unfurlHandler struct {
 
 	maxResults int // max number of urls to process
 
-	fetchers []FetchFunc
-	inFlight singleflight.Group // in-flight urls processed
+	fetchers           []FetchFunc
+	inFlight           singleflight.Group // in-flight urls processed
+	embedHostAllowlist []string
 }
 
 // Result that's returned back to the client
 type unfurlResult struct {
-	URL         string `json:"url"`
-	Title       string `json:"title,omitempty"`
-	Type        string `json:"url_type,omitempty"`
-	Description string `json:"description,omitempty"`
-	HTML        string `json:"html,omitempty"`
-	SiteName    string `json:"site_name,omitempty"`
-	Favicon     string `json:"favicon,omitempty"`
-	Image       string `json:"image,omitempty"`
-	ImageWidth  int    `json:"image_width,omitempty"`
-	ImageHeight int    `json:"image_height,omitempty"`
+	URL          string `json:"url"`
+	Title        string `json:"title,omitempty"`
+	Type         string `json:"url_type,omitempty"`
+	Description  string `json:"description,omitempty"`
+	HTML         string `json:"html,omitempty"`
+	SiteName     string `json:"site_name,omitempty"`
+	ProviderName string `json:"provider_name,omitempty"`
+	Favicon      string `json:"favicon,omitempty"`
+	Image        string `json:"image,omitempty"`
+	ImageWidth   int    `json:"image_width,omitempty"`
+	ImageHeight  int    `json:"image_height,omitempty"`
+	EmbedURL     string `json:"embed_url,omitempty"`
+	EmbedWidth   int    `json:"embed_width,omitempty"`
+	EmbedHeight  int    `json:"embed_height,omitempty"`
 
 	idx int
 }
 
 func (u *unfurlResult) Empty() bool {
 	return u.URL == "" && u.Title == "" && u.Type == "" &&
-		u.Description == "" && u.Image == ""
+		u.Description == "" && u.Image == "" && u.EmbedURL == ""
 }
 
 func (u *unfurlResult) normalize() {
@@ -163,6 +168,9 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	if u.SiteName == "" {
 		u.SiteName = u2.SiteName
 	}
+	if u.ProviderName == "" {
+		u.ProviderName = u2.ProviderName
+	}
 	if u.Image == "" {
 		u.Image = u2.Image
 	}
@@ -171,6 +179,42 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	}
 	if u.ImageHeight == 0 {
 		u.ImageHeight = u2.ImageHeight
+	}
+	if u.EmbedURL == "" {
+		u.EmbedURL = u2.EmbedURL
+	}
+	if u.EmbedWidth == 0 {
+		u.EmbedWidth = u2.EmbedWidth
+	}
+	if u.EmbedHeight == 0 {
+		u.EmbedHeight = u2.EmbedHeight
+	}
+}
+
+func (u *unfurlResult) MergeEmbedFields(u2 *unfurlResult) {
+	if u2 == nil {
+		return
+	}
+	if u.ProviderName == "" {
+		u.ProviderName = u2.ProviderName
+	}
+	if u.Image == "" {
+		u.Image = u2.Image
+	}
+	if u.ImageWidth == 0 {
+		u.ImageWidth = u2.ImageWidth
+	}
+	if u.ImageHeight == 0 {
+		u.ImageHeight = u2.ImageHeight
+	}
+	if u.EmbedURL == "" {
+		u.EmbedURL = u2.EmbedURL
+	}
+	if u.EmbedWidth == 0 {
+		u.EmbedWidth = u2.EmbedWidth
+	}
+	if u.EmbedHeight == 0 {
+		u.EmbedHeight = u2.EmbedHeight
 	}
 }
 
@@ -195,6 +239,9 @@ func New(conf ...ConfFunc) http.Handler {
 	}
 	if h.MaxBodyChunkSize == 0 {
 		h.MaxBodyChunkSize = defaultMaxBodyChunkSize
+	}
+	if h.embedHostAllowlist == nil {
+		h.embedHostAllowlist = defaultEmbedHostAllowlist
 	}
 	if h.Log == nil {
 		h.Log = log.New(io.Discard, "", 0)
@@ -327,7 +374,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	// captchas/login pages when they see requests from non "home ISP"
 	// networks.
 	if endpoint, ok := h.oembedLookupFunc(result.URL); ok {
-		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
+		if res, err := fetchOembed(ctx, endpoint, h.httpGet, h.embedHostAllowlist); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
@@ -368,12 +415,19 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 		if !blocklisted(h.titleBlocklist, res.Title) {
 			result.Merge(res)
 			if result.Type != "" && result.Title != "" {
+				if result.EmbedURL == "" && isVideoType(result.Type) {
+					if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
+						if res, err := fetchOembed(ctx, endpoint, h.httpGet, h.embedHostAllowlist); err == nil {
+							result.MergeEmbedFields(res)
+						}
+					}
+				}
 				goto hasMatch
 			}
 		}
 	}
 	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
-		if res, err := fetchOembed(ctx, endpoint, h.httpGet); err == nil {
+		if res, err := fetchOembed(ctx, endpoint, h.httpGet, h.embedHostAllowlist); err == nil {
 			result.Merge(res)
 			goto hasMatch
 		}
@@ -607,6 +661,10 @@ func withoutTrackingParams(rawURL string) string {
 func mcKey(s string) string {
 	sum := sha1.Sum([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+func isVideoType(t string) bool {
+	return t == "video" || strings.HasPrefix(t, "video.")
 }
 
 func blocklisted(blocklilst []string, title string) bool {
