@@ -111,6 +111,23 @@ func WithOembedLookupFunc(fn oembed.LookupFunc) ConfFunc {
 	}
 }
 
+// WithAllowedEmbedHosts adds HTTPS hosts allowed in extracted oEmbed iframe
+// URLs. The default provider allowlist is kept. Use this when custom oEmbed
+// providers return iframe URLs outside the built-in provider set.
+func WithAllowedEmbedHosts(hosts []string) ConfFunc {
+	allowlist := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		if normalized, err := normalizeEmbedHost(host); err == nil {
+			allowlist = append(allowlist, normalized)
+		}
+	}
+	return func(h *unfurlHandler) *unfurlHandler {
+		h.embedHostAllowlist = appendUniqueEmbedHosts(h.embedHostAllowlist, defaultEmbedHostAllowlist...)
+		h.embedHostAllowlist = appendUniqueEmbedHosts(h.embedHostAllowlist, allowlist...)
+		return h
+	}
+}
+
 // WithLogger configures unfurl handler to use provided logger
 func WithLogger(l Logger) ConfFunc {
 	return func(h *unfurlHandler) *unfurlHandler {
