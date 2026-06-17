@@ -41,10 +41,26 @@ func openGraphParseHTML(chunk *pageChunk) *unfurlResult {
 	if len(og.Images) > 0 {
 		res.Image = og.Images[0].URL
 	}
-	if chunk.url.Host == "twitter.com" &&
-		strings.Contains(chunk.url.Path, "/status/") &&
-		!bytes.Contains(chunk.data, []byte(`property="og:image:user_generated" content="true"`)) {
-		res.Image = ""
+	if isXStatusPage(chunk) {
+		res.SiteName = "X"
+		if isXProfileImageURL(res.Image) {
+			res.Image = ""
+		}
 	}
 	return res
+}
+
+func isXStatusPage(chunk *pageChunk) bool {
+	if chunk == nil || chunk.url == nil {
+		return false
+	}
+
+	host := strings.TrimPrefix(strings.ToLower(chunk.url.Hostname()), "www.")
+	return (host == "x.com" || host == "twitter.com" || host == "mobile.twitter.com") &&
+		strings.Contains(chunk.url.Path, "/status/")
+}
+
+func isXProfileImageURL(image string) bool {
+	return strings.HasPrefix(image, "https://pbs.twimg.com/profile_images/") ||
+		strings.HasPrefix(image, "http://pbs.twimg.com/profile_images/")
 }
