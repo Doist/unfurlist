@@ -64,6 +64,9 @@ func TestFetchOembedVideoExtractsWrappedIframe(t *testing.T) {
 	if res.EmbedURL != "https://supercut.ai/embed/doist/Q5JL6yXD5m7i5QjiOZ2RR9" {
 		t.Fatalf("unexpected EmbedURL: %q", res.EmbedURL)
 	}
+	if res.EmbedWidth != 3652 || res.EmbedHeight != 2132 {
+		t.Fatalf("unexpected embed dimensions: %dx%d", res.EmbedWidth, res.EmbedHeight)
+	}
 }
 
 func TestFetchOembedResolvesRelativeIframeAgainstFinalResponseURL(t *testing.T) {
@@ -174,6 +177,11 @@ func TestExtractOembedIframeURLRejectsUnsafeShapes(t *testing.T) {
 			wantErr: errInvalidIframeSrc,
 		},
 		{
+			name:    "allowed host with port",
+			html:    `<iframe src="https://www.youtube.com:8443/embed/one"></iframe>`,
+			wantErr: errInvalidIframeSrc,
+		},
+		{
 			name:    "disallowed host",
 			html:    `<iframe src="https://example.com/embed/one"></iframe>`,
 			wantErr: errEmbedHostDenied,
@@ -205,52 +213,88 @@ func TestExtractOembedIframeURLRejectsUnsafeShapes(t *testing.T) {
 }
 
 func TestProcessURLDiscoversOembedForOpenGraphVideo(t *testing.T) {
-	oembedHTML := `<div><iframe src="https://supercut.ai/embed/doist/Q5"></iframe></div>`
-	client := &http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.Method == http.MethodHead {
-				return testHTTPResponse(req, http.StatusNotFound, "text/plain", ""), nil
-			}
-			switch req.URL.Host + req.URL.Path {
-			case "supercut.ai/share/doist/Q5":
-				return testHTTPResponse(req, http.StatusOK, "text/html", `<!doctype html>
+	tests := []struct {
+		name            string
+		ogImage         string
+		oembedThumbnail string
+		wantImage       string
+		wantImageWidth  int
+		wantImageHeight int
+	}{
+		{
+			name:            "keeps dimensions empty when thumbnail differs",
+			ogImage:         "https://meta.supercut.ai/thumb.png",
+			oembedThumbnail: "https://oembed.supercut.ai/thumb.png",
+			wantImage:       "https://meta.supercut.ai/thumb.png",
+		},
+		{
+			name:            "backfills dimensions when relative image matches thumbnail",
+			ogImage:         "/thumb.png",
+			oembedThumbnail: "https://supercut.ai/thumb.png",
+			wantImage:       "https://supercut.ai/thumb.png",
+			wantImageWidth:  1024,
+			wantImageHeight: 768,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oembedHTML := `<div><iframe src="https://supercut.ai/embed/doist/Q5"></iframe></div>`
+			client := &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if req.Method == http.MethodHead {
+						return testHTTPResponse(req, http.StatusNotFound, "text/plain", ""), nil
+					}
+					switch req.URL.Host + req.URL.Path {
+					case "supercut.ai/share/doist/Q5":
+						return testHTTPResponse(req, http.StatusOK, "text/html", `<!doctype html>
 					<html>
 						<head>
 							<meta property="og:title" content="Quoting Demo Review">
 							<meta property="og:type" content="video.other">
-							<meta property="og:image" content="https://meta.supercut.ai/thumb.png">
+							<meta property="og:image" content="`+tt.ogImage+`">
 							<link rel="alternate" type="application/json+oembed" href="https://supercut.ai/oembed?url=https%3A%2F%2Fsupercut.ai%2Fshare%2Fdoist%2FQ5">
 						</head>
 						<body></body>
 					</html>`), nil
-			case "supercut.ai/oembed":
-				return testHTTPResponse(req, http.StatusOK, "application/json", mustOembedJSON(t, map[string]any{
-					"type":          "video",
-					"title":         "Quoting Demo Review",
-					"provider_name": "Supercut",
-					"width":         3652,
-					"height":        2132,
-					"html":          oembedHTML,
-				})), nil
-			default:
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				return nil, nil
+					case "supercut.ai/oembed":
+						return testHTTPResponse(req, http.StatusOK, "application/json", mustOembedJSON(t, map[string]any{
+							"type":             "video",
+							"title":            "Quoting Demo Review",
+							"provider_name":    "Supercut",
+							"thumbnail_url":    tt.oembedThumbnail,
+							"thumbnail_width":  1024,
+							"thumbnail_height": 768,
+							"width":            3652,
+							"height":           2132,
+							"html":             oembedHTML,
+						})), nil
+					default:
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+						return nil, nil
+					}
+				}),
 			}
-		}),
-	}
-	h := New(WithHTTPClient(client)).(*unfurlHandler)
-	res := h.processURL(context.Background(), "https://supercut.ai/share/doist/Q5")
-	if res.Title != "Quoting Demo Review" {
-		t.Fatalf("unexpected title: %q", res.Title)
-	}
-	if res.EmbedURL != "https://supercut.ai/embed/doist/Q5" {
-		t.Fatalf("unexpected EmbedURL: %q", res.EmbedURL)
-	}
-	if res.ProviderName != "Supercut" {
-		t.Fatalf("unexpected ProviderName: %q", res.ProviderName)
-	}
-	if res.HTML != "" {
-		t.Fatalf("oEmbed enrichment should not add raw HTML to OG video cards: %q", res.HTML)
+			h := New(WithHTTPClient(client)).(*unfurlHandler)
+			res := h.processURL(context.Background(), "https://supercut.ai/share/doist/Q5")
+			if res.Title != "Quoting Demo Review" {
+				t.Fatalf("unexpected title: %q", res.Title)
+			}
+			if res.EmbedURL != "https://supercut.ai/embed/doist/Q5" {
+				t.Fatalf("unexpected EmbedURL: %q", res.EmbedURL)
+			}
+			if res.ProviderName != "Supercut" {
+				t.Fatalf("unexpected ProviderName: %q", res.ProviderName)
+			}
+			if res.Image != tt.wantImage || res.ImageWidth != tt.wantImageWidth || res.ImageHeight != tt.wantImageHeight {
+				t.Fatalf("unexpected image tuple: %q %dx%d", res.Image, res.ImageWidth, res.ImageHeight)
+			}
+			if res.EmbedWidth != 3652 || res.EmbedHeight != 2132 {
+				t.Fatalf("unexpected embed dimensions: %dx%d", res.EmbedWidth, res.EmbedHeight)
+			}
+			if res.HTML != "" {
+				t.Fatalf("oEmbed enrichment should not add raw HTML to OG video cards: %q", res.HTML)
+			}
+		})
 	}
 }
 

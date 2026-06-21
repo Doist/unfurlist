@@ -171,15 +171,7 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	if u.ProviderName == "" {
 		u.ProviderName = u2.ProviderName
 	}
-	if u.Image == "" {
-		u.Image = u2.Image
-	}
-	if u.ImageWidth == 0 {
-		u.ImageWidth = u2.ImageWidth
-	}
-	if u.ImageHeight == 0 {
-		u.ImageHeight = u2.ImageHeight
-	}
+	u.mergeImageFields(u2)
 	if u.EmbedURL == "" {
 		u.EmbedURL = u2.EmbedURL
 	}
@@ -198,15 +190,7 @@ func (u *unfurlResult) MergeEmbedFields(u2 *unfurlResult) {
 	if u.ProviderName == "" {
 		u.ProviderName = u2.ProviderName
 	}
-	if u.Image == "" {
-		u.Image = u2.Image
-	}
-	if u.ImageWidth == 0 {
-		u.ImageWidth = u2.ImageWidth
-	}
-	if u.ImageHeight == 0 {
-		u.ImageHeight = u2.ImageHeight
-	}
+	u.mergeImageFields(u2)
 	if u.EmbedURL == "" {
 		u.EmbedURL = u2.EmbedURL
 	}
@@ -216,6 +200,45 @@ func (u *unfurlResult) MergeEmbedFields(u2 *unfurlResult) {
 	if u.EmbedHeight == 0 {
 		u.EmbedHeight = u2.EmbedHeight
 	}
+}
+
+func (u *unfurlResult) mergeImageFields(u2 *unfurlResult) {
+	if u2 == nil || u2.Image == "" {
+		return
+	}
+
+	imageCopied := false
+	if u.Image == "" {
+		u.Image = u2.Image
+		imageCopied = true
+	}
+	// Keep image dimensions tied to the image URL they describe.
+	if imageCopied || u.sameImageURL(u.Image, u2.Image) {
+		if u.ImageWidth == 0 {
+			u.ImageWidth = u2.ImageWidth
+		}
+		if u.ImageHeight == 0 {
+			u.ImageHeight = u2.ImageHeight
+		}
+	}
+}
+
+func (u *unfurlResult) sameImageURL(imageURL, otherImageURL string) bool {
+	if imageURL == otherImageURL {
+		return true
+	}
+	if u.URL == "" {
+		return false
+	}
+	absImageURL, err := absoluteImageURL(u.URL, imageURL)
+	if err != nil {
+		return false
+	}
+	absOtherImageURL, err := absoluteImageURL(u.URL, otherImageURL)
+	if err != nil {
+		return false
+	}
+	return absImageURL == absOtherImageURL
 }
 
 // ConfFunc is used to configure new unfurl handler; such functions should be
