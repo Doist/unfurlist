@@ -220,6 +220,16 @@ func (u *unfurlResult) MergeEmbedFields(u2 *unfurlResult) {
 	}
 }
 
+// applyMetadata fills u with fields of metadata retrieved by a FetchFunc
+func (u *unfurlResult) applyMetadata(meta *Metadata) {
+	u.Title = meta.Title
+	u.Type = meta.Type
+	u.Description = meta.Description
+	u.Image = meta.Image
+	u.ImageWidth = meta.ImageWidth
+	u.ImageHeight = meta.ImageHeight
+}
+
 // ConfFunc is used to configure new unfurl handler; such functions should be
 // used as arguments to New function
 type ConfFunc func(*unfurlHandler) *unfurlHandler
@@ -370,6 +380,15 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	}
 	var chunk *pageChunk
 	var err error
+	// Instagram serves its pages without any usable metadata (or redirects
+	// to a login page) to most non-browser clients, so get post metadata
+	// from its public embed endpoint instead of fetching the page.
+	if meta, ok := instagramFetcher(ctx, h.httpGet, result.URL); ok && meta.Valid() {
+		result.applyMetadata(meta)
+		result.SiteName = "Instagram"
+		result.Favicon = "https://www.instagram.com/favicon.ico"
+		goto hasMatch
+	}
 	// Optimistically apply oembed logic to url we have, which can only work
 	// for non-minimized urls; however if it works, it'll let us skip fetching
 	// url altogether. This can also somewhat help against sites redirecting to
@@ -385,12 +404,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	if err != nil {
 		if chunk != nil && strings.Contains(chunk.url.Host, "youtube.com") {
 			if meta, ok := youtubeFetcher(ctx, h.HTTPClient, chunk.url); ok && meta.Valid() {
-				result.Title = meta.Title
-				result.Type = meta.Type
-				result.Description = meta.Description
-				result.Image = meta.Image
-				result.ImageWidth = meta.ImageWidth
-				result.ImageHeight = meta.ImageHeight
+				result.applyMetadata(meta)
 				goto hasMatch
 			}
 		}
@@ -404,12 +418,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 		if !ok || !meta.Valid() {
 			continue
 		}
-		result.Title = meta.Title
-		result.Type = meta.Type
-		result.Description = meta.Description
-		result.Image = meta.Image
-		result.ImageWidth = meta.ImageWidth
-		result.ImageHeight = meta.ImageHeight
+		result.applyMetadata(meta)
 		goto hasMatch
 	}
 
@@ -612,6 +621,8 @@ var trackingParams = map[string]struct{}{
 	"gclsrc":  {},
 	"msclkid": {},
 	"twclid":  {},
+	"igsh":    {},
+	"igshid":  {},
 	// IMDb-specific tracking
 	"ref_":    {},
 	"pf_rd_m": {},
