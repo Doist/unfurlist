@@ -136,8 +136,10 @@ type unfurlResult struct {
 	idx int
 }
 
+// Empty reports whether unfurl produced no usable metadata; the URL field is
+// ignored as it is always set to the processed url.
 func (u *unfurlResult) Empty() bool {
-	return u.URL == "" && u.Title == "" && u.Type == "" &&
+	return u.Title == "" && u.Type == "" &&
 		u.Description == "" && u.Image == "" && u.EmbedURL == ""
 }
 
