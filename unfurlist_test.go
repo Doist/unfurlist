@@ -222,6 +222,16 @@ func Test_withoutTrackingParams(t *testing.T) {
 				want:  "https://www.imdb.com/title/tt1234567/",
 			},
 			{
+				name:  "strips instagram share params",
+				input: "https://www.instagram.com/reel/DaVYQZlER5B/?igsh=a3N5cG0yY3IzMHc5",
+				want:  "https://www.instagram.com/reel/DaVYQZlER5B/",
+			},
+			{
+				name:  "strips legacy instagram share params",
+				input: "https://www.instagram.com/p/BsOGulcndj-/?igshid=abc123",
+				want:  "https://www.instagram.com/p/BsOGulcndj-/",
+			},
+			{
 				name:  "strips facebook click id preserves others",
 				input: "https://example.com/article?fbclid=abc123&page=2",
 				want:  "https://example.com/article?page=2",

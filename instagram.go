@@ -37,7 +37,7 @@ func instagramFetcher(ctx context.Context, fn func(context.Context, string) (*ht
 	if resp.StatusCode != http.StatusOK {
 		return nil, false
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, instagramMaxBodySize))
 	if err != nil {
 		return nil, false
 	}
@@ -46,6 +46,11 @@ func instagramFetcher(ctx context.Context, fn func(context.Context, string) (*ht
 	}
 	return instagramParseEmbedHTML(body)
 }
+
+// instagramMaxBodySize caps reads of embed pages. Unlike regular page fetches
+// limited by MaxBodyChunkSize, embed pages must be read almost in full: they
+// are ~150KB and the contextJSON payload sits near the end.
+const instagramMaxBodySize = 2 << 20
 
 var instagramPostRe = regexp.MustCompile(`^(?:/[A-Za-z0-9._]+)?/(p|reel|reels|tv)/([A-Za-z0-9_-]+)/?$`)
 
