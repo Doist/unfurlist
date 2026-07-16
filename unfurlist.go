@@ -380,21 +380,12 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 	}
 	var chunk *pageChunk
 	var err error
-	// Instagram serves its pages without any usable metadata (or redirects
-	// to a login page) to most non-browser clients, so get post metadata
-	// from its public embed endpoint instead of fetching the page.
-	if meta, ok := instagramFetcher(ctx, h.httpGet, result.URL); ok && meta.Valid() {
-		result.applyMetadata(meta)
-		result.SiteName = "Instagram"
-		result.Favicon = "https://www.instagram.com/favicon.ico"
-		goto hasMatch
-	}
 	// Optimistically apply oembed logic to url we have, which can only work
 	// for non-minimized urls; however if it works, it'll let us skip fetching
 	// url altogether. This can also somewhat help against sites redirecting to
 	// captchas/login pages when they see requests from non "home ISP"
 	// networks.
-	if endpoint, ok := h.oembedLookupFunc(result.URL); ok {
+	if endpoint, ok := h.lookupOembed(result.URL); ok {
 		if res, err := fetchOembed(ctx, endpoint, h.httpGet, h.embedHostAllowlist); err == nil {
 			result.Merge(res)
 			goto hasMatch
@@ -427,7 +418,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 			result.Merge(res)
 			if result.Type != "" && result.Title != "" {
 				if result.EmbedURL == "" && isVideoType(result.Type) {
-					if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
+					if endpoint, found := chunk.oembedEndpoint(h.lookupOembed); found {
 						if res, err := fetchOembed(ctx, endpoint, h.httpGet, h.embedHostAllowlist); err == nil {
 							result.MergeEmbedFields(res)
 						}
@@ -437,7 +428,7 @@ func (h *unfurlHandler) processURL(ctx context.Context, link string) *unfurlResu
 			}
 		}
 	}
-	if endpoint, found := chunk.oembedEndpoint(h.oembedLookupFunc); found {
+	if endpoint, found := chunk.oembedEndpoint(h.lookupOembed); found {
 		if res, err := fetchOembed(ctx, endpoint, h.httpGet, h.embedHostAllowlist); err == nil {
 			result.Merge(res)
 			goto hasMatch
@@ -473,11 +464,14 @@ hasMatch:
 
 	if mc := h.Cache; mc != nil {
 		if cdata, err := json.Marshal(result); err == nil {
-			item := &memcache.Item{Key: mcKey(link), Value: snappy.Encode(nil, cdata)}
+			item := &memcache.Item{
+				Key:        mcKey(link),
+				Value:      snappy.Encode(nil, cdata),
+				Expiration: cacheExpiration(result),
+			}
 			if result.Empty() {
 				// Cache failures briefly to avoid repeatedly hitting sites
 				// that block us. A short TTL ensures we retry eventually.
-				item.Expiration = 300 // 5 minutes
 				h.Log.Printf("Empty result cache for %q", link)
 			} else {
 				h.Log.Printf("Cache update for %q", link)
@@ -486,6 +480,21 @@ hasMatch:
 		}
 	}
 	return result
+}
+
+func cacheExpiration(result *unfurlResult) int32 {
+	if result.Empty() {
+		return 5 * 60
+	}
+	if result.ProviderName == "Instagram" {
+		// Posts can be deleted, made private, or have embeds disabled.
+		return 24 * 60 * 60
+	}
+	return 0
+}
+
+func (h *unfurlHandler) lookupOembed(link string) (string, bool) {
+	return h.oembedLookupFunc(canonicalInstagramOembedURL(link))
 }
 
 // pageChunk describes first chunk of resource
