@@ -301,6 +301,70 @@ func TestProcessURLSkipsDisallowedOembedIframeWithoutDroppingUnfurl(t *testing.T
 	}
 }
 
+func TestInstagramProviderUsesGraphOembed(t *testing.T) {
+	h := New().(*unfurlHandler)
+	testCases := []struct {
+		link string
+		want string
+	}{
+		{"https://www.instagram.com/p/Da1GcLiMA-K/", "https://www.instagram.com/p/Da1GcLiMA-K/"},
+		{"https://www.instagram.com/reel/Da1BvizS8Me/", "https://www.instagram.com/reel/Da1BvizS8Me/"},
+		{"https://www.instagram.com/reels/Da1BvizS8Me/", "https://www.instagram.com/reel/Da1BvizS8Me/"},
+		{"https://www.instagram.com/halfblood.university/reel/Da1BvizS8Me/", "https://www.instagram.com/reel/Da1BvizS8Me/"},
+		{"https://instagr.am/p/Da1GcLiMA-K/", "https://instagr.am/p/Da1GcLiMA-K/"},
+		{"http://www.instagram.com/reel/Da1BvizS8Me/?img_index=2", "http://www.instagram.com/reel/Da1BvizS8Me/?img_index=2"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.link, func(t *testing.T) {
+			endpoint, ok := h.lookupOembed(tc.link)
+			if !ok {
+				t.Fatal("Instagram URL did not match an oEmbed provider")
+			}
+			u := mustParseURL(t, endpoint)
+			if u.Scheme != "https" || u.Host != "graph.facebook.com" || u.Path != "/v25.0/instagram_oembed" {
+				t.Fatalf("unexpected Instagram oEmbed endpoint: %q", endpoint)
+			}
+			if got := u.Query().Get("url"); got != tc.want {
+				t.Fatalf("oEmbed url parameter = %q, want %q", got, tc.want)
+			}
+			if token := u.Query().Get("access_token"); token != "" {
+				t.Fatalf("tokenless oEmbed endpoint unexpectedly included an access token")
+			}
+		})
+	}
+}
+
+func TestProcessURLUsesInstagramGraphOembed(t *testing.T) {
+	const link = "https://www.instagram.com/reel/Da1BvizS8Me/"
+	const embedHTML = `<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/reel/Da1BvizS8Me/"></blockquote>`
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Host != "graph.facebook.com" || req.URL.Path != "/v25.0/instagram_oembed" {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			}
+			if got := req.URL.Query().Get("url"); got != link {
+				t.Fatalf("oEmbed url parameter = %q, want %q", got, link)
+			}
+			return testHTTPResponse(req, http.StatusOK, "application/json; charset=UTF-8", mustOembedJSON(t, map[string]any{
+				"version":       "1.0",
+				"provider_name": "Instagram",
+				"provider_url":  "https://www.instagram.com/",
+				"type":          "rich",
+				"width":         658,
+				"html":          embedHTML,
+			})), nil
+		}),
+	}
+	h := New(WithHTTPClient(client)).(*unfurlHandler)
+	res := h.processURL(context.Background(), link)
+	if res.Type != "rich" || res.SiteName != "Instagram" || res.ProviderName != "Instagram" || res.HTML != embedHTML {
+		t.Fatalf("unexpected Instagram oEmbed result: %#v", res)
+	}
+	if res.Empty() {
+		t.Fatalf("Instagram rich oEmbed result was treated as empty: %#v", res)
+	}
+}
+
 func TestWithAllowedEmbedHostsKeepsDefaultsAndAddsCustomHosts(t *testing.T) {
 	h := New(WithAllowedEmbedHosts([]string{"player.example.com"})).(*unfurlHandler)
 	if !slices.Contains(h.embedHostAllowlist, "www.youtube.com") {

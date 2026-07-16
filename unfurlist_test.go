@@ -299,6 +299,25 @@ func Test_withoutTrackingParams(t *testing.T) {
 	})
 }
 
+func TestCacheExpiration(t *testing.T) {
+	testCases := []struct {
+		name   string
+		result *unfurlResult
+		want   int32
+	}{
+		{"empty result", &unfurlResult{}, 5 * 60},
+		{"Instagram oEmbed", &unfurlResult{Type: "rich", ProviderName: "Instagram"}, 24 * 60 * 60},
+		{"other successful result", &unfurlResult{Title: "Example"}, 0},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := cacheExpiration(tc.result); got != tc.want {
+				t.Fatalf("cacheExpiration() = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
 // pipePool implements net.Listener interface and provides a Dial() func to dial
 // to this listener
 type pipePool struct {
