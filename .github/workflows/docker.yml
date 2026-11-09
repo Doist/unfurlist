@@ -40,7 +40,7 @@ jobs:
       run: |
         set -u
         # https://help.github.com/en/actions/automating-your-workflow-with-github-actions/using-environment-variables
-        IMAGE_ID=ghcr.io/doist/$IMAGE_NAME
+        IMAGE_ID=ghcr.io/todoist/$IMAGE_NAME
 
          # Strip git ref prefix from version
         VERSION=${GITHUB_REF##*/}
